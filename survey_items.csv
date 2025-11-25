@@ -1,0 +1,43 @@
+Section,Item_Number,Item_Text,Scale,Source,Construct,Note
+1. Demografie,D1,How old are you?,Open (Jahre),Demografie,Alter,
+1. Demografie,D2,Are you a?,Multiple Choice: Maennlich / Weiblich / Divers / Keine Angabe,Demografie,Geschlecht,
+1. Demografie,D3,How many years have you had your drivers license for,Open (Jahre),Demografie,Fahrerfahrung,
+1. Demografie,D4,"On average, how many kilometers do you drive per year",Multiple Choice: <5k / 5-10k / 10-20k / 20-30k / >30k,Demografie,Jaehrliche Fahrleistung,
+1. Demografie,D5,"How often do you use AI systems like ChatGPT, Perplexity, etc.",5-Punkt Likert: Nie (1) - Sehr haeufig (5),Demografie,KI-Erfahrung,
+2. Persoenlichkeit (Big Five),BFI1,"I see myself as someone ...... who is reserved",5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Extraversion,
+2. Persoenlichkeit (Big Five),BFI2,... who is generally trusting.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Vertraeglichkeit,
+2. Persoenlichkeit (Big Five),BFI3,... who tends to be lazy.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Gewissenhaftigkeit,
+2. Persoenlichkeit (Big Five),BFI4,"... who is relaxed, handles stress well.",5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Neurotizismus,
+2. Persoenlichkeit (Big Five),BFI5,... who has few artistic interests.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Offenheit,
+2. Persoenlichkeit (Big Five),BFI6,"... who is outgoing, sociable.",5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Extraversion,
+2. Persoenlichkeit (Big Five),BFI7,... who tends to find fault with others.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Vertraeglichkeit,
+2. Persoenlichkeit (Big Five),BFI8,... who does a thorough job.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Gewissenhaftigkeit,
+2. Persoenlichkeit (Big Five),BFI9,... who gets nervous easily.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Neurotizismus,
+2. Persoenlichkeit (Big Five),BFI10,... who has an active imagination.,5-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (5),BFI-10,Offenheit,
+3. Fahrverhalten (Mini-DBQ),DBQ1,"Driving especially close or \"flashing\" the car in front as a signal for that driver to go faster or get out of your way",5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ2,Deliberately disregarding the speed limits late at night or very early in the morning,5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ3,Getting involved in unofficial "races" with other car drivers,5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ4,"Turning right on to a main road into the path of an oncoming vehicle that you had not seen, or whose speed you had misjudged",5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ5,"Failing to notice, because lost in thought or distracted, someone waiting at a zebra crossing, or that a pelican crossing light has just turned red",5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ6,Misjudging the speed of a moving vehicle when overtaking,5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ7,Forgetting where you left your car in a multi-level car park,5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ8,Getting into the wrong lane at a roundabout or approaching a road junction,5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+3. Fahrverhalten (Mini-DBQ),DBQ9,"Failing to read the signs correctly, and exiting from a roundabout on the wrong road",5-Punkt Likert: Nie (1) - Sehr haeufig (5),Mini-DBQ,Fahrverhalten,Martinussen et al. (2013)
+4. Emotionsregulation (ERQ),ERQ1,"When I want to feel more positive emotion (such as joy or amusement), I change what I am thinking about.",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ2,I keep my emotions to myself.,7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ3,"When I want to feel less negative emotion (such as sadness or anger), I change what I am thinking about.",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ4,"When I am feeling positive emotions, I am careful not to express them.",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ5,"When I am faced with a stressful situation, I make myself think about it in a way that helps me stay calm",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ6,I control my emotions by not expressing them.,7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ7,"When I want to feel more positive emotion, I change the way I am thinking about the situation",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ8,I control my emotions by changing the way I think about the situation I am in.,7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ9,"When I am feeling negative emotions, I make sure not to express them.",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+4. Emotionsregulation (ERQ),ERQ10,"When I want to feel less negative emotion, I change the way I am thinking about the situation.",7-Punkt Likert: Stimme ueberhaupt nicht zu (1) - Stimme voll zu (7),ERQ,Emotionsregulation,Gross & John (2003)
+5. Sensation Seeking (BSSS-8),BSSS1,"I would like to explore strange places.",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS2,"I would like to make a trip with no pre-planned routes or timetables",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS3,"I get restless when I spend much time at home",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS4,"I prefer friends who are excitingly unpredictable.",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS5," I like to do frightening things",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS6,"I would like to try bungee jumping.",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS7,"I like wild parties.",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)
+5. Sensation Seeking (BSSS-8),BSSS8,"I would like to have new and exciting experiences, even if they are illegal",5-Punkt Likert: Strongly Disagree (1) - Strongly Agree (5),BSSS-8,Sensation Seeking,Hoyle et al. (2002)

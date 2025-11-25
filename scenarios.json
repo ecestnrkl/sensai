@@ -1,0 +1,17 @@
+[
+  {
+    "id": "child_road",
+    "title": "Child Runs Onto Road",
+    "text": "You are driving through a residential area when a small child suddenly runs onto the road between parked cars."
+  },
+  {
+    "id": "traffic_jam",
+    "title": "Gridlock Boredom",
+    "text": "You are stuck in a long traffic jam on the highway with no clear information on when it will clear."
+  },
+  {
+    "id": "night_fatigue",
+    "title": "Nighttime Fatigue",
+    "text": "It is late at night on a long stretch of highway and you feel drowsy while trying to stay alert."
+  }
+]
