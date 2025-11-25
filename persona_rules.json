@@ -1,0 +1,7 @@
+{
+  "default": "Provide calm, concise guidance that prioritizes safety and clarity.",
+  "high_neuroticism": "User may feel anxious; use extra reassurance, slow pacing, and acknowledge stress before advising.",
+  "high_extraversion": "User is outgoing; keep tone warm and conversational with brief encouragement.",
+  "high_agreeableness": "User prefers collaboration; use inclusive language and gentle suggestions.",
+  "low_agreeableness": "User may resist instructions; keep tone direct, factual, and emphasize concrete benefits."
+}

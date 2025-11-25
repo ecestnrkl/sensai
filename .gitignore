@@ -1,0 +1,16 @@
+# Python cache & virtualenv
+__pycache__/
+*.pyc
+.venv/
+
+# IDE/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Local data/output
+tmp_audio/
+results.csv
+
+# Audio artifacts
+*.wav
