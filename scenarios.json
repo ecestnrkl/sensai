@@ -2,16 +2,19 @@
   {
     "id": "child_road",
     "title": "Child Runs Onto Road",
-    "text": "You are driving through a residential area when a small child suddenly runs onto the road between parked cars."
+    "text": "You are driving through a residential area when a small child suddenly runs onto the road between parked cars.",
+    "text_de": "Du fährst durch ein Wohngebiet, als plötzlich ein kleines Kind zwischen parkenden Autos auf die Straße läuft."
   },
   {
     "id": "traffic_jam",
     "title": "Gridlock Boredom",
-    "text": "You are stuck in a long traffic jam on the highway with no clear information on when it will clear."
+    "text": "You are stuck in a long traffic jam on the highway with no clear information on when it will clear.",
+    "text_de": "Du steckst in einem langen Stau auf der Autobahn und weißt nicht, wann er sich auflöst."
   },
   {
     "id": "night_fatigue",
     "title": "Nighttime Fatigue",
-    "text": "It is late at night on a long stretch of highway and you feel drowsy while trying to stay alert."
+    "text": "It is late at night on a long stretch of highway and you feel drowsy while trying to stay alert.",
+    "text_de": "Es ist spät in der Nacht auf einer langen Autobahnstrecke und du fühlst dich schläfrig, willst aber wach bleiben."
   }
 ]
