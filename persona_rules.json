@@ -3,5 +3,12 @@
   "high_neuroticism": "User may feel anxious; use extra reassurance, slow pacing, and acknowledge stress before advising.",
   "high_extraversion": "User is outgoing; keep tone warm and conversational with brief encouragement.",
   "high_agreeableness": "User prefers collaboration; use inclusive language and gentle suggestions.",
-  "low_agreeableness": "User may resist instructions; keep tone direct, factual, and emphasize concrete benefits."
+  "low_agreeableness": "User may resist instructions; keep tone direct, factual, and emphasize concrete benefits.",
+  "dbq_violations_high": "Driver tends to violate rules; emphasize safety, legal compliance, and clear consequences.",
+  "dbq_errors_high": "Driver prone to mistakes; give step-by-step, unambiguous instructions and confirm understanding.",
+  "dbq_lapses_high": "Driver prone to lapses; keep instructions simple, repeat key points briefly.",
+  "bsss_experience_high": "Driver seeks new experiences; frame advice with constructive options while maintaining safety.",
+  "bsss_thrill_high": "Driver seeks thrill; de-emphasize risky excitement, redirect to safe alternatives and caution.",
+  "bsss_disinhibition_high": "Driver may be impulsive; stress restraint, calm tone, and immediate safe actions.",
+  "bsss_boredom_high": "Driver gets bored easily; keep responses engaging but safety-focused, suggest safe activities (music/podcast)."
 }
