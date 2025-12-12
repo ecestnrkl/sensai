@@ -2,11 +2,18 @@ import csv
 import datetime
 import random
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from audio_io import synthesize_speech, transcribe_audio
 from data import SCENARIO_LABEL_TO_ID, SCENARIO_LOOKUP
-from llm_client import call_llm, sanitize_llm_output, truncate_response
+from llm_client import (
+    call_llm,
+    filter_by_language,
+    looks_wrong_language,
+    rewrite_for_language,
+    sanitize_llm_output,
+    truncate_response,
+)
 from prompts import base_system_prompt, build_persona_summary, checkin_prompts, user_prompt
 from settings import RESULTS_PATH
 
@@ -81,6 +88,18 @@ def append_result_row(row: Dict[str, str]) -> str:
     return "Saved."
 
 
+def _history_to_messages(history: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Convert stored history to gr.Chatbot message format (list of role/content dicts)."""
+    messages: List[Dict[str, str]] = []
+    for msg in history:
+        role = (msg or {}).get("role")
+        content = (msg or {}).get("content")
+        if not role or content is None:
+            continue
+        messages.append({"role": role, "content": content})
+    return messages
+
+
 def save_condition(condition_key: str, state: dict):
     if not state or not state.get("conditions") or condition_key not in state["conditions"]:
         return "Nothing to save. Run the experiment first."
@@ -130,7 +149,10 @@ def handle_run(
     endpoint_url: str,
     model_name: str,
     audio_path: Optional[str],
+    manual_text: str = "",
+    state: Optional[dict] = None,
 ):
+    state = state or {}
     if not endpoint_url.strip():
         return (
             "",
@@ -141,6 +163,8 @@ def handle_run(
             None,
             "",
             "",
+            [],
+            [],
             {},
         )
     if not model_name.strip():
@@ -153,6 +177,8 @@ def handle_run(
             None,
             "",
             "",
+            [],
+            [],
             {},
         )
     scenario_id = SCENARIO_LABEL_TO_ID.get(scenario_label, scenario_label)
@@ -166,11 +192,26 @@ def handle_run(
             None,
             "",
             "",
+            [],
+            [],
             {},
         )
-    transcript, transcript_error, detected_lang = transcribe_audio(audio_path, language_hint=language)
-    if not transcript:
-        transcript = SCENARIO_LOOKUP[scenario_id]["text"]
+    existing_history = {}
+    for key, history in (state.get("chat_history") or {}).items():
+        try:
+            existing_history[key] = [dict(msg) for msg in history]  # shallow copy
+        except Exception:
+            existing_history[key] = []
+
+    manual_text = (manual_text or "").strip()
+    transcript_error = None
+    detected_lang = None
+    if manual_text:
+        transcript = manual_text
+    else:
+        transcript, transcript_error, detected_lang = transcribe_audio(audio_path, language_hint=language)
+        if not transcript:
+            transcript = SCENARIO_LOOKUP[scenario_id]["text"]
     response_lang = detected_lang if detected_lang in ("en", "de") else language
 
     persona_summary = build_persona_summary(
@@ -205,7 +246,13 @@ def handle_run(
         prompt_debug[f"condition{idx}"] = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
 
         start_time = time.time()
-        llm_response, llm_error = call_llm(endpoint_url, model_name, system_prompt, user_prompt_text)
+        llm_response, llm_error = call_llm(
+            endpoint_url,
+            model_name,
+            system_prompt,
+            user_prompt_text,
+            chat_history=existing_history.get(condition, []),
+        )
         if llm_error:
             error_text = f"{condition.title()} error: {llm_error}"
             outputs.append((error_text, None, 0.0, condition))
@@ -215,15 +262,30 @@ def handle_run(
                 "audio_path": None,
                 "latency": 0.0,
             }
+            new_history = list(existing_history.get(condition, []))
+            new_history.append({"role": "user", "content": user_prompt_text})
+            new_history.append({"role": "assistant", "content": error_text})
+            existing_history[condition] = new_history
             continue
 
-        cleaned_response = truncate_response(sanitize_llm_output(llm_response))
+        cleaned_response = sanitize_llm_output(llm_response)
+        cleaned_response = filter_by_language(cleaned_response, response_lang)
+        if looks_wrong_language(cleaned_response, response_lang):
+            rewritten = rewrite_for_language(endpoint_url, model_name, cleaned_response, response_lang)
+            if rewritten:
+                cleaned_response = rewritten
+        cleaned_response = truncate_response(cleaned_response, response_lang)
         tts_path, tts_error = synthesize_speech(cleaned_response, response_lang, f"{condition}_{idx}")
         latency = time.time() - start_time
 
         if tts_error:
-            cleaned_response = f"{cleaned_response}\n[TTS failed: {tts_error}]"
-            tts_path = None
+            tts_note = (
+                "TTS aktuell nicht verfügbar, bitte Text lesen."
+                if response_lang == "de"
+                else "TTS unavailable right now, please read the text."
+            )
+            cleaned_response = f"{cleaned_response}\n[{tts_note}]"
+            # Keep silent fallback audio if available to avoid UI breakage.
         outputs.append((cleaned_response, tts_path, latency, condition))
         condition_data[f"condition{idx}"] = {
             "condition": condition,
@@ -231,6 +293,10 @@ def handle_run(
             "audio_path": tts_path,
             "latency": latency,
         }
+        new_history = list(existing_history.get(condition, []))
+        new_history.append({"role": "user", "content": user_prompt_text})
+        new_history.append({"role": "assistant", "content": cleaned_response})
+        existing_history[condition] = new_history
 
     while len(outputs) < 2:
         outputs.append(("", None, 0.0, ""))
@@ -256,6 +322,7 @@ def handle_run(
         "bsss_boredom": bsss_boredom,
         "conditions": condition_data,
         "prompts": prompt_debug,
+        "chat_history": existing_history,
     }
 
     cond1_text = f"{cond1[3].replace('_', ' ').title() or 'Condition 1'}: {cond1[0]}"
@@ -278,6 +345,8 @@ def handle_run(
         cond2[1],
         prompt_debug.get("condition1", ""),
         prompt_debug.get("condition2", ""),
+        _history_to_messages(existing_history.get(cond1[3], [])),
+        _history_to_messages(existing_history.get(cond2[3], [])),
         state,
     )
 
@@ -327,9 +396,19 @@ def handle_checkin(
     llm_response, llm_error = call_llm(endpoint_url, model_name, system_prompt, user_prompt_text)
     if llm_error:
         return f"Check-in error: {llm_error}", None, prompt_debug
-    cleaned = truncate_response(sanitize_llm_output(llm_response))
+    cleaned = sanitize_llm_output(llm_response)
+    cleaned = filter_by_language(cleaned, response_lang)
+    if looks_wrong_language(cleaned, response_lang):
+        rewritten = rewrite_for_language(endpoint_url, model_name, cleaned, response_lang)
+        if rewritten:
+            cleaned = rewritten
+    cleaned = truncate_response(cleaned, response_lang)
     tts_path, tts_error = synthesize_speech(cleaned, response_lang, "checkin")
     if tts_error:
-        cleaned = f"{cleaned}\n[TTS failed: {tts_error}]"
-        tts_path = None
+        tts_note = (
+            "TTS aktuell nicht verfügbar, bitte Text lesen."
+            if response_lang == "de"
+            else "TTS unavailable right now, please read the text."
+        )
+        cleaned = f"{cleaned}\n[{tts_note}]"
     return cleaned, tts_path, prompt_debug

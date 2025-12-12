@@ -1,6 +1,33 @@
+import re
 from typing import Tuple
 
 from data import PERSONA_RULES, get_scenario_text
+
+
+def format_driver_scenario(text: str) -> str:
+    """Rewrite scenario text to third person and clean punctuation."""
+    if not text:
+        return ""
+    t = text.strip()
+    patterns = [
+        (r"^du\s+fühlst\s+dich\s+", "Der Fahrer fühlt sich "),
+        (r"^du\s+fühlst\s+", "Der Fahrer fühlt sich "),
+        (r"^du\s+fährst\s+", "Der Fahrer fährt "),
+        (r"^du\s+steckst\s+", "Der Fahrer steckt "),
+        (r"^du\s+bist\s+", "Der Fahrer ist "),
+        (r"^du\s+hast\s+", "Der Fahrer hat "),
+        (r"^du\s+", "Der Fahrer "),
+    ]
+    for pattern, replacement in patterns:
+        if re.search(pattern, t, flags=re.IGNORECASE):
+            t = re.sub(pattern, replacement, t, count=1, flags=re.IGNORECASE)
+            break
+    t = re.sub(r"\s+", " ", t)
+    t = re.sub(r"\.{2,}", ".", t)
+    t = t.rstrip(" .")
+    if t and not t.endswith("."):
+        t = f"{t}."
+    return t
 
 
 def build_persona_summary(
@@ -73,18 +100,22 @@ def build_persona_summary(
 
 
 def base_system_prompt(scenario_id: str, response_lang: str) -> str:
-    scenario_text = get_scenario_text(scenario_id, response_lang)
+    scenario_text = format_driver_scenario(get_scenario_text(scenario_id, response_lang))
     if response_lang == "de":
         return (
-            "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich knapp auf Deutsch, maximal drei kurze Sätze. "
+            "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich knapp auf Deutsch, genau zwei kurze Sätze. "
             "Verwende keine englischen Wörter oder Halbsätze; falls du Englisch nutzt, wiederhole sofort nur auf Deutsch. "
-            "Keine Meta-Einleitungen wie 'Hier ist meine Antwort'; antworte direkt, klar und grammatikalisch sauber. "
+            "Klingt wie gesprochene Sprache: locker, freundlich, aber klar. "
+            "Keine Meta-Einleitungen oder Füllwörter ('natürlich', 'okay', 'hier ist'), keine Listen/Nummerierungen. "
+            "Antworte direkt, klar und grammatikalisch sauber. "
             f"Szenario: {scenario_text}"
         )
     return (
-        f"You are a voice assistant in a vehicle. Answer only shortly in English, maximum three short sentences. "
+        f"You are a voice assistant in a vehicle. Answer only in English, exactly two short sentences. "
         "Do not use any German words; if you do, restate in English only. "
-        "No meta openers like 'Here is my answer'; answer directly, clearly, with proper grammar. "
+        "Sound like natural spoken language: friendly, concise, no lists/numbering. "
+        "No meta openers or fillers (e.g., 'Of course', 'Sure', 'Here are'). "
+        "Answer directly, clearly, with proper grammar. "
         f"Scenario context: {scenario_text}"
     )
 
@@ -94,37 +125,40 @@ def user_prompt(transcript: str, response_lang: str) -> str:
         return (
             f"Fahrer-Transkript (Sprache=de): {transcript}. "
             "Antworte strikt auf Deutsch; keine englischen Wörter oder Mischungen. "
-            "Keine Meta-Sätze (z.B. 'hier ist meine Antwort'). Gib klare, grammatikalisch korrekte Sätze."
+            "Keine Meta-Sätze oder Füllwörter (z.B. 'natürlich', 'gerne'), keine Listen/Nummerierungen. "
+            "Klingt wie gesprochene Sprache, genau zwei klare Sätze."
         )
     return (
         f"Driver transcript (lang={response_lang}): {transcript}. "
         "Answer strictly in English; do not mix languages. "
-        "Avoid meta phrases (e.g., 'here is my answer'). Provide clear, grammatically correct sentences."
+        "Avoid meta phrases or fillers (e.g., 'of course', 'sure', 'here are'), and do not use lists/numbering. "
+        "Sound like natural spoken English, exactly two clear sentences."
     )
 
 
 def checkin_prompts(
     scenario_id: str, response_lang: str, persona_summary: str
 ) -> Tuple[str, str]:
-    scenario_text = get_scenario_text(scenario_id, response_lang)
+    scenario_text = format_driver_scenario(get_scenario_text(scenario_id, response_lang))
     if response_lang == "de":
         system_prompt = (
-            "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, maximal zwei kurze Sätze. "
-            "Verwende keine englischen Wörter oder Halbsätze. "
+            "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, genau zwei kurze, vollständige Sätze (<30 Wörter). "
+            "Keine englischen Wörter oder Halbsätze. Keine Füllwörter oder Ich-Aussagen über dein Befinden. Ruhiger Navi-Ton. "
             f"Szenario: {scenario_text}. Persona hints: {persona_summary}"
         )
         user_prompt = (
-            "Beginne mit einer kurzen, empathischen Check-in-Frage wie 'Wie geht es Ihnen?'. "
-            "Bleibe ausschließlich auf Deutsch; keine englischen Wörter. Kontext nur kurz erwähnen."
+            "Stelle dem Fahrer eine kurze, ruhige Frage wie 'Wie geht es Ihnen gerade?'. "
+            "Keine englischen Wörter. Keine Ich-Aussagen über Stimmung ('mir geht es', 'ich fühle', 'ich bin'). "
+            "Keine Listen, keine Wiederholung des Prompts oder der Eingabe."
         )
     else:
         system_prompt = (
-            "You are a voice assistant in a vehicle. Answer only in English, max two short sentences. "
-            "Do not use any German words. "
+            "You are a voice assistant in a vehicle. Answer only in English, exactly two short, complete sentences (<30 words). "
+            "No German words or code-switching. No meta phrases or filler. Calm navigation tone. "
             f"Scenario: {scenario_text}. Persona hints: {persona_summary}"
         )
         user_prompt = (
-            "Start with a brief empathetic check-in like 'How are you doing?'. "
-            "Stay strictly in English; no German words. Mention driving context only briefly."
+            "Ask the driver a short, calm check-in question like 'How are you doing right now?'. "
+            "No German words. No self-talk about your own feelings. No lists; do not echo the prompt or input."
         )
     return system_prompt, user_prompt
