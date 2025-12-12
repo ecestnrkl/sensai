@@ -1,144 +1,161 @@
 # Audio Personality Prompting Prototype
-Lokaler Gradio-Harness, der LLM-Antworten mit/ohne Persona Conditioning vergleicht. Nutzt Mikrofonaufnahme, Whisper-Transkription und Coqui XTTS v2 (TTS).
+Gradio app to compare LLM replies with and without persona hints. Audio input (mic), Whisper transcription, Coqui XTTS v2 TTS. UI default is English; German via toggle. Below: full English guide + German short version.
 
-## Installation
+## English Guide
+### Requirements
+- Python 3.11, Git, microphone.
+- LLM server: easiest Ollama (chat endpoint) or any OpenAI-compatible chat server (e.g., llama.cpp server).
+- Network access for model downloads (Whisper, XTTS, Ollama pulls).
+
+### Setup (macOS/Linux, Bash)
 ```bash
-cd /prototype_audio_test
+git clone <repo> prototype_audio_test
+cd prototype_audio_test
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install "transformers<4.46"  # nötig, weil TTS noch BeamSearchScorer erwartet
+pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
 pip install gradio faster-whisper soundfile numpy requests TTS
 ```
 
-## User Guide (Schritt für Schritt)
-
-### 1) Umgebung vorbereiten
-```bash
-cd "/Users/ecesutanrikulu/Developer/Sensai Test/prototype_audio_test"
-python3 -m venv .venv
-source .venv/bin/activate
+### Setup (Windows, PowerShell)
+```powershell
+git clone <repo> prototype_audio_test
+cd prototype_audio_test
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install "transformers<4.46" torch==2.5.1 torchaudio==2.5.1
+pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
 pip install gradio faster-whisper soundfile numpy requests TTS
 ```
+Note: Ollama officially supports macOS/Linux; on Windows use WSL or another OpenAI-compatible endpoint.
 
-### 2) LLM-Server starten
-- **Ollama (Standard im UI)**  
-  ```bash
-  ollama serve            # Terminal A offen lassen
-  ollama pull llama2:7b-chat
-  ```  
-  UI-Defaults: Endpoint `http://localhost:11434`, Model `llama2:7b-chat`
-
-- **llama.cpp (Llama-2-7b-chat) auf CPU**  
-  ```bash
-  cd /Users/<you>/.llama/checkpoints/Llama-2-7b-chat
-  python -m venv .venv && source .venv/bin/activate
-  python -m pip install --upgrade pip
-  pip install llama-cpp-python
-  python -m llama_cpp.convert --outtype q4_k_m --outfile llama-2-7b-chat-q4_k_m.gguf .
-  python -m llama_cpp.server \
-    --model /Users/<you>/.llama/checkpoints/Llama-2-7b-chat/llama-2-7b-chat-q4_k_m.gguf \
-    --host 0.0.0.0 --port 8000 --n_ctx 4096 --chat_format llama-2
-  ```  
-  UI anpassen: Endpoint `http://localhost:8000`, Model `llama-2-7b-chat`
-
-### 3) App starten
+### Start LLM server
+**Option A: Ollama (recommended)**
 ```bash
-cd "/Users/ecesutanrikulu/Developer/Sensai Test/prototype_audio_test"
+ollama serve           # keep terminal open
+ollama pull llama2:7b-chat
+```
+UI defaults match: Endpoint `http://localhost:11434`, Model `llama2:7b-chat`.
+
+**Option B: llama.cpp server (CPU example)**
+```bash
+python -m venv ~/.llama-venv && source ~/.llama-venv/bin/activate
+python -m pip install --upgrade pip
+pip install llama-cpp-python
+python -m llama_cpp.convert --outtype q4_k_m --outfile llama-2-7b-chat-q4_k_m.gguf /path/to/Llama-2-7b-chat
+python -m llama_cpp.server \
+  --model /path/to/llama-2-7b-chat-q4_k_m.gguf \
+  --host 0.0.0.0 --port 8000 --n_ctx 4096 --chat_format llama-2
+```
+Set UI: Endpoint `http://localhost:8000`, Model `llama-2-7b-chat`.
+
+### Run the app
+macOS/Linux:
+```bash
+cd prototype_audio_test
 source .venv/bin/activate
 python app.py
 ```
-Öffne die angezeigte Gradio-URL (lokal).
+Windows (PowerShell):
+```powershell
+cd prototype_audio_test
+.venv\Scripts\Activate.ps1
+python app.py
+```
+Open the printed Gradio URL in your browser.
 
-### 4) Warmup & LLM-Test (empfohlen)
-- Button **Warmup starten**: lädt Whisper + XTTS (erster Download kann 1–2 Minuten dauern).
-- Button **LLM Verbindung testen**: prüft Endpoint/Modell (kurzer Pong-Test).
+### Warmup & connection test
+- **Warmup starten**: preload Whisper + XTTS (first download 1–2 minutes).
+- **LLM Verbindung testen**: quick pong check for endpoint/model.
 
-### 5) Experiment durchführen
-1. Tab **Experiment** öffnen.  
-2. Teilnehmer-ID eintragen; Scenario auswählen (Text wird angezeigt).  
-3. Condition Order wählen (random/personalized first/non personalized first).  
-4. Big Five Slider setzen.  
-5. Sprache oben wählen (de/en) – alle Prompts und TTS laufen dann nur in dieser Sprache.  
-6. Endpoint/Model prüfen (Defaults für Ollama sind gesetzt).  
-7. Mikrofon aufnehmen (Push-to-talk).  
-8. **Run both conditions** klicken.
+### UI workflow
+1. Open **Experiment** tab.  
+2. Set Participant ID, choose scenario (text shown).  
+3. Pick language (en/de) – replies + TTS follow this.  
+4. Set Big Five/DBQ/BSSS, choose condition order.  
+5. Adjust endpoint/model if needed (Ollama defaults are prefilled).  
+6. Input via mic (push-to-talk) or text box.  
+7. Click **Run both conditions** → two replies (personalized / non personalized) with text + TTS.  
+8. Optional **Save Condition 1/2**: append row to `results.csv` (no ratings).  
+9. Check-in: **Trigger Check-in** gives a short question + optional boredom tip.
 
-### 7) Ergebnisse interpretieren
-- Es werden zwei Bedingungen erzeugt (personalized / non personalized) mit Text + TTS.
-- Unter “Debug: LLM Prompts” siehst du SYSTEM/USER-Prompts pro Condition (zeigt, was ans LLM ging).
-- TTS nutzt automatisch die erkannte Whisper-Sprache (de/en), sonst den UI-Fallback.
+### Files & folders
+- `results.csv` – saved runs (header auto-created).
+- `tmp_audio/` – temporary audio (TTS/inputs). Clear with `rm tmp_audio/*` (macOS/Linux) or `del tmp_audio\*` (PowerShell).
+- `persona_rules.json`, `scenarios.json` – content/config.
 
-### 7) Speichern (ohne Ratings)
-- Nach dem Anhören optional **Save Condition 1/2** klicken. Die Zeile (ohne Ratings) landet in `results.csv`.
+### Troubleshooting
+- Ollama 404: model name must match `ollama list`.
+- TTS `BeamSearchScorer`: in `.venv` run `pip install "transformers<4.46"`.
+- TTS `weights_only`: `pip install torch==2.5.1 torchaudio==2.5.1`.
+- TTS “no speaker provided”: default speaker auto-set; optionally set `TTS_SPEAKER_NAME` or `TTS_SPEAKER_WAV`.
+- Slow first reply: warmup; XTTS download once.
+- No reply: check endpoint/port; for llama.cpp ensure `--chat_format llama-2`.
 
-### 9) Troubleshooting
-- LLM-Test schlägt fehl: Endpoint/Port/Modellname prüfen (`ollama list`).
-- XTTS Init-Fehler BeamSearchScorer: `pip install "transformers<4.46"` im `.venv`.
-- weights_only Fehler: `pip install torch==2.5.1 torchaudio==2.5.1`.
-- TTS “no speaker provided”: Default-Speaker wird jetzt automatisch gesetzt; optional `TTS_SPEAKER_NAME="Gracie Wise"` oder `TTS_SPEAKER_WAV=/pfad/zu/voice.wav`.
-- Lange Antworten: `MAX_GENERATION_TOKENS` in `app.py` weiter reduzieren (z.B. 120).
-- Audio leer: Dann wird automatisch der Scenario-Text benutzt.
+### Env vars (quick reference)
+- `TTS_SPEAKER_NAME` – name from XTTS speaker list.
+- `TTS_SPEAKER_WAV` – path to your reference voice.
+- `DEFAULT_ENDPOINT`, `DEFAULT_MODEL` – adjust UI defaults in `settings.py`.
 
-### 10) Daten/Logs
-- Laufzeitdaten in `results.csv` (standardmäßig nicht versioniert, siehe `.gitignore`).
-- Temporäre Audios in `tmp_audio/`.
+### Clean up audio cache
+- macOS/Linux: `rm tmp_audio/*`
+- Windows PowerShell: `del tmp_audio\*`
 
-## Option A: Llama-2-7b-chat lokal (llama.cpp, CPU)
-Terminal A: Modell bereitstellen und Server starten.
+---
+
+## Deutsche Kurzfassung
+- Gradio-App vergleicht LLM-Antworten mit/ohne Persona-Hinweise. Audio rein, Whisper-Transkript, XTTS v2 als TTS. UI-Default Englisch, Umschalter auf Deutsch.
+
+### Voraussetzungen
+- Python 3.11, Git, Mikrofon; LLM-Server (Ollama empfohlen), Netzwerk für Downloads.
+
+### Setup (macOS/Linux)
 ```bash
-# 1) Llama 2 Chat laden (Meta-Instruktionen) nach /Users/<you>/.llama/checkpoints/Llama-2-7b-chat
-cd /Users/<you>/.llama/checkpoints/Llama-2-7b-chat
-python -m venv .venv && source .venv/bin/activate
+git clone <repo> prototype_audio_test
+cd prototype_audio_test
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install llama-cpp-python
-
-# 2) In GGUF konvertieren (Q4_K_M, CPU-freundlich)
-python -m llama_cpp.convert --outtype q4_k_m --outfile llama-2-7b-chat-q4_k_m.gguf .
-
-# 3) OpenAI-kompatiblen Server starten (läuft weiter)
-python -m llama_cpp.server \
-  --model /Users/<you>/.llama/checkpoints/Llama-2-7b-chat/llama-2-7b-chat-q4_k_m.gguf \
-  --host 0.0.0.0 --port 8000 --n_ctx 4096 --chat_format llama-2
+pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
+pip install gradio faster-whisper soundfile numpy requests TTS
 ```
-Terminal B: App starten (siehe Schnellstart).
 
-**UI-Einstellungen für diese Option**
-- Endpoint URL: `http://localhost:8000` (UI ist standardmäßig auf Ollama gestellt; hier bitte anpassen)
-- Model Name: `llama2:7b-chat`
-- Button **LLM Verbindung testen** zeigt sofort, ob der Endpoint erreichbar ist.
+### Setup (Windows PowerShell)
+```powershell
+git clone <repo> prototype_audio_test
+cd prototype_audio_test
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
+pip install gradio faster-whisper soundfile numpy requests TTS
+```
+Ollama offiziell macOS/Linux; unter Windows WSL oder anderen OpenAI-kompatiblen Endpoint nutzen.
 
-## Option B: Ollama (einfachster Weg)
-Terminal A:
+### LLM-Server
+- Ollama: `ollama serve`, `ollama pull llama2:7b-chat` (Endpoint `http://localhost:11434`, Model `llama2:7b-chat`).
+- llama.cpp: wie oben mit `--chat_format llama-2`, Endpoint `http://localhost:8000`.
+
+### App starten
 ```bash
-brew install ollama          # falls noch nicht vorhanden
-ollama serve                 # Server offen lassen
-ollama pull llama2:7b-chat        # lädt Llama-2-Chat 7B
+source .venv/bin/activate   # bzw. .venv\Scripts\Activate.ps1
+python app.py
 ```
-Terminal B: App starten.
+Gradio-URL im Browser öffnen.
 
-**UI-Einstellungen für Ollama**
-- Endpoint URL: `http://localhost:11434` (Default im UI)
-- Model Name: exakt wie in `ollama list` (Default: `llama2:7b-chat`)
-- Bei 404: Modellname prüfen, exakt eintragen und erneut **LLM Verbindung testen**.
+### Nutzung
+- Warmup laden, LLM-Verbindung testen.
+- Im Tab **Experiment**: ID setzen, Szenario wählen, Sprache (de/en), Slider ausfüllen, Endpoint prüfen, Audio oder Text eingeben, **Run both conditions** drücken.
+- Zwei Antworten (personalized / non personalized) als Text + TTS; optional speichern in `results.csv`.
+- Check-in: **Trigger Check-in** liefert Frage + optionalen Langeweile-Tipp.
 
-## Bedienung & Hinweise
-- **Endpoint/Modell**: Das Tool erkennt automatisch Ollama (`/api/chat`) vs. OpenAI-kompatibel (`/v1/chat/completions`). Auch Basispfade wie `http://localhost:8000/v1` werden bereinigt.
-- **Warmup**: Button **Warmup starten** lädt Whisper + XTTS vor. Der erste XTTS-Download (~1–2 GB) kann 1–2 Minuten dauern; danach ist TTS schnell.
-- **Audio**: Mikrofon aufnehmen (Push-to-talk), Whisper transkribiert. Fällt Transkription aus, wird der Scenario-Text genutzt.
-- **TTS**: `tts_models/multilingual/multi-dataset/xtts_v2`. Multi-Speaker: Default-Speaker wird automatisch gesetzt; mit `TTS_SPEAKER_NAME="<Name aus speakers.json>"` oder `TTS_SPEAKER_WAV=/pfad/zu/voice.wav` kannst du explizit steuern.
-- **Logs**: Ratings/Antworten landen in `results.csv` (Header wird automatisch angelegt).
-- **Leistung**: Whisper int8 + XTTS v2 laufen auf CPU. Erster Lauf lädt Modelle und ist langsamer.
+### Dateien
+- `results.csv` (Runs), `tmp_audio/` (temporäre Audios; leeren mit `rm tmp_audio/*` oder `del tmp_audio\*`), `persona_rules.json`, `scenarios.json`.
 
-## Troubleshooting
-- **LLM Verbindung testen** im UI nutzen, bevor du aufnimmst. Meldet klaren Fehlertext inkl. URL.
-- 404 bei Ollama: Modellname stimmt nicht (`ollama list` prüfen).
-- Keine Antwort: Läuft der Server? Richtiger Port? Bei llama.cpp muss `--chat_format llama-2` gesetzt sein.
-- Doppelte Pfade wie `/v1/v1/...` werden automatisch korrigiert; trage nur die Basis-URL ein.
-- Antworten dauern zu lange: Generations sind auf ~200 Tokens begrenzt. Passe `MAX_GENERATION_TOKENS` in `app.py` an, falls nötig.
-- Erster TTS-Call hängt: Vorher **Warmup starten** drücken (oder einmalig TTS im Code laden). Der Download kann je nach Verbindung >1 Minute dauern.
-- TTS-Importfehler `BeamSearchScorer`: Im `.venv` `pip install "transformers<4.46"` ausführen und die App neu starten.
-- TTS weights_only/Checkpoint-Fehler: Falls Warmup wegen `weights_only` fehlschlägt, `pip install torch==2.5.1` im `.venv` probieren. Nur Checkpoints aus vertrauenswürdiger Quelle nutzen.
-- TTS meldet „no speaker provided“: Default-Speaker wird nun automatisch gesetzt. Falls du eine bestimmte Stimme willst, setze `TTS_SPEAKER_NAME` oder `TTS_SPEAKER_WAV`.
+### Troubleshooting
+- 404 bei Ollama: Modellname exakt wie in `ollama list`.
+- TTS-Fehler BeamSearchScorer: `pip install "transformers<4.46"`.
+- TTS `weights_only`: `pip install "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0`.
+- Keine Antwort: Endpoint/Port prüfen; bei llama.cpp `--chat_format llama-2`.
+- Langsam: Warmup abwarten; XTTS-Download kann 1–2 min dauern.
