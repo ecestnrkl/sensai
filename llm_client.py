@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import requests
 
@@ -36,15 +36,22 @@ def call_llm(
     system_prompt: str,
     user_prompt: str,
     max_tokens: int = MAX_GENERATION_TOKENS,
+    chat_history=None,
 ) -> Tuple[Optional[str], Optional[str]]:
     style = detect_api_style(endpoint)
     url = normalized_url(endpoint, style)
+    messages = [{"role": "system", "content": system_prompt}]
+    if chat_history:
+        for msg in chat_history:
+            role = (msg or {}).get("role")
+            content = (msg or {}).get("content")
+            if not role or not content:
+                continue
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_prompt})
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        "messages": messages,
     }
     if style == "ollama":
         payload["stream"] = False
@@ -111,7 +118,15 @@ def sanitize_llm_output(text: str) -> str:
     # Remove common meta-intros
     cleaned = re.sub(
         r"^(?:here(?:'| i)s my answer:|here(?:'| i)s the answer:|here(?:'| i)s your answer:|"
-        r"klar[!:]?|sicher[!:]?|okay[,:]?|ok[,:]?|alright[,:]?|sure[,:]?)\s*",
+        r"klar[!:]?|sicher[!:]?|okay[,:]?|ok[,:]?|alright[,:]?|sure[,:]?|sure thing[,:]?|"
+        r"of course[,:]?|absolutely[,:]?|yes[,:]?|yeah[,:]?|oh[,:]?)\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"^(?:thing[,.]?)\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        r"^(?:fahrer[-\s]*transkript:|fahrer[-\s]*sagt:|antwortsprache:|driver transcript:|driver says:|response language:)\s*",
         "",
         cleaned,
         flags=re.IGNORECASE,
@@ -120,7 +135,137 @@ def sanitize_llm_output(text: str) -> str:
     return cleaned.strip()
 
 
-def truncate_response(text: str, max_chars: int = 320) -> str:
-    if len(text) <= max_chars:
-        return text
-    return text[:max_chars].rstrip() + "…"
+def scrub_language_leaks(text: str, lang: str) -> str:
+    leaks_de = [
+        "already",
+        "there",
+        "sure",
+        "ok",
+        "okay",
+        "right",
+        "traffic",
+        "driver",
+        "bored",
+        "jam",
+        "stuck",
+        "thing",
+        "yeah",
+        "yes",
+    ]
+    leaks_en = [
+        "schon",
+        "doch",
+        "nicht",
+        "und",
+        "aber",
+        "bitte",
+        "danke",
+        "gerne",
+        "vielleicht",
+        "ruhig",
+        "sicher",
+        "straße",
+        "strasse",
+        "fahr",
+        "fahrt",
+    ]
+    lower = text
+    if lang == "de":
+        for leak in leaks_de:
+            lower = re.sub(rf"\b{re.escape(leak)}\b", "", lower, flags=re.IGNORECASE)
+        lower = re.sub(r"\b[Aa]lready\b", "", lower)
+    else:
+        for leak in leaks_en:
+            lower = re.sub(rf"\b{re.escape(leak)}\b", "", lower, flags=re.IGNORECASE)
+        lower = re.sub(r"\bbitte\b", "", lower, flags=re.IGNORECASE)
+    lower = re.sub(r"\s{2,}", " ", lower)
+    return lower.strip()
+
+
+def looks_wrong_language(text: str, lang: str) -> bool:
+    english_markers = ["the", "and", "you", "already", "there", "traffic", "road", "car", "drive"]
+    german_markers = ["und", "nicht", "schon", "dich", "mir", "dir", "bitte", "danke", "fahrt", "strasse", "straße"]
+    lower = text.lower()
+    eng_hits = sum(1 for w in english_markers if re.search(rf"\b{w}\b", lower))
+    ger_hits = sum(1 for w in german_markers if re.search(rf"\b{w}\b", lower))
+    if lang == "de":
+        return eng_hits >= 2 and eng_hits > ger_hits
+    return ger_hits >= 2 and ger_hits > eng_hits
+
+
+def _ensure_punctuation(sentence: str) -> str:
+    sent = sentence.strip()
+    if not sent:
+        return ""
+    if sent[-1] not in ".!?":
+        sent += "."
+    return sent
+
+
+def ensure_two_complete_sentences(text: str, lang: str) -> str:
+    normalized = re.sub(r"\.{3,}", ".", text)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    parts = re.split(r"(?<=[.!?])\s+", normalized)
+    sentences: List[str] = []
+    for part in parts:
+        cleaned = part.strip()
+        if not cleaned:
+            continue
+        cleaned = cleaned.rstrip(".!?")
+        if cleaned:
+            sentences.append(_ensure_punctuation(cleaned))
+        if len(sentences) == 2:
+            break
+    def _fallback(idx: int) -> str:
+        if lang == "de":
+            return "Bitte konzentriere dich auf die Straße." if idx == 0 else "Bleib ruhig und halte Abstand."
+        return "Stay focused on the road." if idx == 0 else "Keep calm and maintain safe distance."
+    while len(sentences) < 2:
+        sentences.append(_ensure_punctuation(_fallback(len(sentences))))
+    return " ".join(sentences[:2])
+
+
+def truncate_response(text: str, lang: str, max_chars: int = 280, max_words: int = 30) -> str:
+    cleaned = scrub_language_leaks(text, lang)
+    sentences_text = ensure_two_complete_sentences(cleaned, lang)
+    parts = re.split(r"(?<=[.!?])\s+", sentences_text.strip())
+    parts = [p.strip() for p in parts if p.strip()]
+    if not parts:
+        parts = [""]
+    if len(parts) < 2:
+        parts.append(_ensure_punctuation(parts[0]))
+    s1_words = parts[0].split()
+    s2_words = parts[1].split()
+    total_words = len(s1_words) + len(s2_words)
+    if total_words > max_words:
+        allowed_s2 = max_words - len(s1_words)
+        if allowed_s2 < 4:
+            allowed_s2 = 4
+        s2_words = s2_words[:allowed_s2]
+        parts[1] = _ensure_punctuation(" ".join(s2_words))
+    result = f"{parts[0]} {parts[1]}".strip()
+    if len(result) > max_chars:
+        short_tip = "Bleib aufmerksam und fahr sicher." if lang == "de" else "Stay alert and drive safely."
+        result = f"{parts[0]} {short_tip}"
+        result = re.sub(r"\s{2,}", " ", result).strip()
+    result = scrub_language_leaks(result, lang)
+    return ensure_two_complete_sentences(result, lang)
+
+
+def filter_by_language(text: str, lang: str) -> str:
+    return scrub_language_leaks(text, lang)
+
+
+def rewrite_for_language(endpoint: str, model: str, text: str, lang: str) -> Optional[str]:
+    target = "Deutsch" if lang == "de" else "English"
+    system_prompt = (
+        f"Rewrite the assistant reply in {target} only. Output exactly two short, complete sentences. "
+        "No lists, no meta, no quotes."
+    )
+    user_prompt = f"Rewrite this as two sentences in {target}: {text}"
+    rewritten, err = call_llm(endpoint, model, system_prompt, user_prompt, max_tokens=MAX_GENERATION_TOKENS // 2)
+    if err or not rewritten:
+        return None
+    cleaned = sanitize_llm_output(rewritten)
+    cleaned = scrub_language_leaks(cleaned, lang)
+    return truncate_response(cleaned, lang)

@@ -2,6 +2,8 @@ import os
 import uuid
 from pathlib import Path
 from typing import Optional, Tuple
+import wave
+import contextlib
 
 from faster_whisper import WhisperModel
 from TTS.api import TTS
@@ -82,6 +84,8 @@ def transcribe_audio(audio_path: Optional[str], language_hint: Optional[str] = N
 
 
 def synthesize_speech(text: str, language: str, tag: str) -> Tuple[Optional[str], Optional[str]]:
+    if not text or not str(text).strip():
+        return None, "No text provided for TTS."
     tts, speaker = get_tts()
     out_path = TMP_DIR / f"{tag}_{uuid.uuid4().hex}.wav"
     tts_kwargs = {"text": text, "language": language, "file_path": str(out_path)}
@@ -103,7 +107,20 @@ def synthesize_speech(text: str, language: str, tag: str) -> Tuple[Optional[str]
         tts.tts_to_file(**tts_kwargs)
         return str(out_path), None
     except Exception as exc:  # pragma: no cover - runtime safeguard
-        return None, f"TTS error: {exc}"
+        fallback_path = _write_silence_wav(tag)
+        return fallback_path, f"TTS error: {exc}"
+
+
+def _write_silence_wav(tag: str, duration_sec: float = 1.0, sample_rate: int = 16000) -> str:
+    """Create a short silent WAV as a fallback to avoid hard failures."""
+    frames = int(duration_sec * sample_rate)
+    out_path = TMP_DIR / f"{tag}_silent_{uuid.uuid4().hex}.wav"
+    with contextlib.closing(wave.open(str(out_path), "w")) as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit PCM
+        wf.setframerate(sample_rate)
+        wf.writeframes(b"\x00\x00" * frames)
+    return str(out_path)
 
 
 def warm_up_models() -> str:

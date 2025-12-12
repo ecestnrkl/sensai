@@ -30,6 +30,10 @@ TRANSLATIONS = {
         "cond2_audio": "Condition 2 TTS",
         "prompt1": "Condition 1 Prompt",
         "prompt2": "Condition 2 Prompt",
+        "text_input": "Textfeld (optional statt Spracheingabe)",
+        "text_placeholder": "Hier tippen, wenn du nicht sprechen möchtest.",
+        "chat1": "Gesprächsverlauf (Condition 1)",
+        "chat2": "Gesprächsverlauf (Condition 2)",
         "checkin_button": "Check-in auslösen",
         "checkin_text": "Check-in Text",
         "checkin_audio": "Check-in TTS",
@@ -62,6 +66,10 @@ TRANSLATIONS = {
         "cond2_audio": "Condition 2 TTS",
         "prompt1": "Condition 1 prompt",
         "prompt2": "Condition 2 prompt",
+        "text_input": "Type instead of speaking (optional)",
+        "text_placeholder": "Type here if you do not want to use the microphone.",
+        "chat1": "Conversation (Condition 1)",
+        "chat2": "Conversation (Condition 2)",
         "checkin_button": "Trigger Check-in",
         "checkin_text": "Check-in text",
         "checkin_audio": "Check-in TTS",
@@ -78,14 +86,15 @@ def build_interface():
     scenario_choices = [(f"{s['title']} ({s['id']})", s["id"]) for s in SCENARIO_LOOKUP.values()]
     scenario_label_map = {label: sid for label, sid in scenario_choices}
 
-    tr = TRANSLATIONS["de"]
+    default_lang = "en"
+    tr = TRANSLATIONS[default_lang]
     with gr.Blocks(title="Audio Personality Prompting Prototype") as demo:
         gr.Markdown("# Audio Personality Prompting Prototype")
         with gr.Row():
             participant_id = gr.Textbox(label=tr["participant_id"], placeholder="P001")
             endpoint_url = gr.Textbox(label=tr["endpoint"], value=DEFAULT_ENDPOINT)
             model_name = gr.Textbox(label=tr["model"], value=DEFAULT_MODEL)
-            language = gr.Radio(LANG_CHOICES, value="de", label=tr["lang_label"])
+            language = gr.Radio(LANG_CHOICES, value=default_lang, label=tr["lang_label"])
         with gr.Row():
             llm_status = gr.Textbox(
                 label="LLM Status / Troubleshooting",
@@ -109,7 +118,7 @@ def build_interface():
                     label=tr["scenario_label"],
                 )
                 default_text = (
-                    get_scenario_text(scenario_choices[0][1], "de") if scenario_choices else ""
+                    get_scenario_text(scenario_choices[0][1], default_lang) if scenario_choices else ""
                 )
                 scenario_text = gr.Textbox(
                     label=tr["scenario_text_label"], interactive=False, lines=3, value=default_text
@@ -154,12 +163,19 @@ def build_interface():
                 checkin_audio = gr.Audio(label=tr["checkin_audio"], type="filepath")
             checkin_prompt_box = gr.Textbox(label=tr["checkin_prompt"], lines=3)
 
-            audio_in = gr.Audio(
-                sources=["microphone"],
-                type="filepath",
-                label=tr["audio_label"],
-                format="wav",
-            )
+            gr.Markdown("### Eingabe")
+            with gr.Row():
+                audio_in = gr.Audio(
+                    sources=["microphone"],
+                    type="filepath",
+                    label=tr["audio_label"],
+                    format="wav",
+                )
+                manual_text = gr.Textbox(
+                    label=tr["text_input"],
+                    lines=4,
+                    placeholder=tr["text_placeholder"],
+                )
 
             run_button = gr.Button(tr["run_button"], variant="primary")
 
@@ -169,9 +185,11 @@ def build_interface():
             with gr.Row():
                 cond1_text = gr.Textbox(label=tr["cond1_text"], lines=4)
                 cond1_audio = gr.Audio(label=tr["cond1_audio"], type="filepath")
+            cond1_chat = gr.Chatbot(label=tr["chat1"], height=240)
             with gr.Row():
                 cond2_text = gr.Textbox(label=tr["cond2_text"], lines=4)
                 cond2_audio = gr.Audio(label=tr["cond2_audio"], type="filepath")
+            cond2_chat = gr.Chatbot(label=tr["chat2"], height=240)
 
             gr.Markdown("### Debug: LLM Prompts (SYSTEM + USER)")
             cond1_prompt_box = gr.Textbox(label=tr["prompt1"], lines=6)
@@ -180,6 +198,11 @@ def build_interface():
             state = gr.State({})
 
             run_button.click(
+                lambda: gr.update(interactive=False),
+                inputs=None,
+                outputs=run_button,
+                queue=False,
+            ).then(
                 handle_run,
                 inputs=[
                     participant_id,
@@ -201,6 +224,8 @@ def build_interface():
                     endpoint_url,
                     model_name,
                     audio_in,
+                    manual_text,
+                    state,
                 ],
                 outputs=[
                     transcript_box,
@@ -211,8 +236,15 @@ def build_interface():
                     cond2_audio,
                     cond1_prompt_box,
                     cond2_prompt_box,
+                    cond1_chat,
+                    cond2_chat,
                     state,
                 ],
+            ).then(
+                lambda: gr.update(interactive=True),
+                inputs=None,
+                outputs=run_button,
+                queue=False,
             )
 
             save1 = gr.Button(tr["save1"])
@@ -232,6 +264,11 @@ def build_interface():
             )
 
             checkin_button.click(
+                lambda: gr.update(interactive=False),
+                inputs=None,
+                outputs=checkin_button,
+                queue=False,
+            ).then(
                 handle_checkin,
                 inputs=[
                     participant_id,
@@ -253,6 +290,11 @@ def build_interface():
                     model_name,
                 ],
                 outputs=[checkin_status, checkin_audio, checkin_prompt_box],
+            ).then(
+                lambda: gr.update(interactive=True),
+                inputs=None,
+                outputs=checkin_button,
+                queue=False,
             )
 
         llm_test_btn.click(
@@ -293,13 +335,16 @@ def build_interface():
                 gr.update(label=t["bsss"][2]),
                 gr.update(label=t["bsss"][3]),
                 gr.update(label=t["audio_label"]),
+                gr.update(label=t["text_input"], placeholder=t["text_placeholder"]),
                 gr.update(value=t["run_button"]),
                 gr.update(label=t["transcript_label"]),
                 gr.update(label=t["persona_label"]),
                 gr.update(label=t["cond1_text"]),
                 gr.update(label=t["cond1_audio"]),
+                gr.update(label=t["chat1"]),
                 gr.update(label=t["cond2_text"]),
                 gr.update(label=t["cond2_audio"]),
+                gr.update(label=t["chat2"]),
                 gr.update(label=t["prompt1"]),
                 gr.update(label=t["prompt2"]),
                 gr.update(value=t["checkin_button"]),
@@ -338,13 +383,16 @@ def build_interface():
                 bsss_disinhibition,
                 bsss_boredom,
                 audio_in,
+                manual_text,
                 run_button,
                 transcript_box,
                 persona_box,
                 cond1_text,
                 cond1_audio,
+                cond1_chat,
                 cond2_text,
                 cond2_audio,
+                cond2_chat,
                 cond1_prompt_box,
                 cond2_prompt_box,
                 checkin_button,
