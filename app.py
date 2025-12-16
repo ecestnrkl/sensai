@@ -6,6 +6,32 @@ from handlers import handle_checkin, handle_run, save_condition
 from llm_client import test_llm_connection
 from settings import DEFAULT_ENDPOINT, DEFAULT_MODEL, LANG_CHOICES
 
+CUSTOM_CSS = """
+/* Subtle condition coloring for response boxes */
+.cond-personalized {
+  --input-background-fill: rgba(46, 204, 113, 0.12);
+}
+
+.cond-nonpersonalized {
+  --input-background-fill: rgba(52, 152, 219, 0.12);
+}
+
+.cond-response textarea,
+.cond-response input {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.cond-personalized textarea,
+.cond-personalized input {
+  background-color: rgba(46, 204, 113, 0.12) !important;
+}
+
+.cond-nonpersonalized textarea,
+.cond-nonpersonalized input {
+  background-color: rgba(52, 152, 219, 0.12) !important;
+}
+"""
+
 TRANSLATIONS = {
     "de": {
         "participant_id": "Teilnehmer-ID",
@@ -20,6 +46,7 @@ TRANSLATIONS = {
         "big_five": ["Offenheit (O)", "Gewissenhaftigkeit (C)", "Extraversion (E)", "Verträglichkeit (A)", "Neurotizismus (N)"],
         "dbq": ["Verstöße", "Fehler", "Unaufmerksamkeiten"],
         "bsss": ["Erfahrungs-Suche", "Thrill & Adventure", "Enthemmung", "Langeweile-Anfälligkeit"],
+        "erq": ["Cognitive Reappraisal", "Expressive Suppression"],
         "audio_label": "Mikrofon (Push-to-talk)",
         "run_button": "Beide Bedingungen ausführen",
         "transcript_label": "Fahrer-Transkript",
@@ -56,6 +83,7 @@ TRANSLATIONS = {
         "big_five": ["Openness (O)", "Conscientiousness (C)", "Extraversion (E)", "Agreeableness (A)", "Neuroticism (N)"],
         "dbq": ["Violations", "Errors", "Lapses"],
         "bsss": ["Experience Seeking", "Thrill & Adventure", "Disinhibition", "Boredom Susceptibility"],
+        "erq": ["Cognitive Reappraisal", "Expressive Suppression"],
         "audio_label": "Microphone (push to talk)",
         "run_button": "Run both conditions",
         "transcript_label": "Driver transcript",
@@ -89,6 +117,7 @@ def build_interface():
     default_lang = "en"
     tr = TRANSLATIONS[default_lang]
     with gr.Blocks(title="Audio Personality Prompting Prototype") as demo:
+        demo.css = CUSTOM_CSS
         gr.Markdown("# Audio Personality Prompting Prototype")
         with gr.Row():
             participant_id = gr.Textbox(label=tr["participant_id"], placeholder="P001")
@@ -156,6 +185,11 @@ def build_interface():
                 bsss_disinhibition = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][2])
                 bsss_boredom = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][3])
 
+            gr.Markdown("### Emotion Regulation Questionnaire (1-7)")
+            with gr.Row():
+                erq_reappraisal = gr.Slider(1, 7, value=3, step=1, label=tr["erq"][0])
+                erq_suppression = gr.Slider(1, 7, value=3, step=1, label=tr["erq"][1])
+
             gr.Markdown("### Gesprächseinstieg (Check-in)")
             with gr.Row():
                 checkin_button = gr.Button(tr["checkin_button"], variant="secondary")
@@ -183,11 +217,11 @@ def build_interface():
             persona_box = gr.Textbox(label=tr["persona_label"], lines=3)
 
             with gr.Row():
-                cond1_text = gr.Textbox(label=tr["cond1_text"], lines=4)
+                cond1_text = gr.Textbox(label=tr["cond1_text"], lines=4, elem_classes=["cond-response"])
                 cond1_audio = gr.Audio(label=tr["cond1_audio"], type="filepath")
             cond1_chat = gr.Chatbot(label=tr["chat1"], height=240)
             with gr.Row():
-                cond2_text = gr.Textbox(label=tr["cond2_text"], lines=4)
+                cond2_text = gr.Textbox(label=tr["cond2_text"], lines=4, elem_classes=["cond-response"])
                 cond2_audio = gr.Audio(label=tr["cond2_audio"], type="filepath")
             cond2_chat = gr.Chatbot(label=tr["chat2"], height=240)
 
@@ -219,6 +253,8 @@ def build_interface():
                     bsss_thrill,
                     bsss_disinhibition,
                     bsss_boredom,
+                    erq_reappraisal,
+                    erq_suppression,
                     condition_order,
                     language,
                     endpoint_url,
@@ -285,6 +321,8 @@ def build_interface():
                     bsss_thrill,
                     bsss_disinhibition,
                     bsss_boredom,
+                    erq_reappraisal,
+                    erq_suppression,
                     language,
                     endpoint_url,
                     model_name,
@@ -334,6 +372,8 @@ def build_interface():
                 gr.update(label=t["bsss"][1]),
                 gr.update(label=t["bsss"][2]),
                 gr.update(label=t["bsss"][3]),
+                gr.update(label=t["erq"][0]),
+                gr.update(label=t["erq"][1]),
                 gr.update(label=t["audio_label"]),
                 gr.update(label=t["text_input"], placeholder=t["text_placeholder"]),
                 gr.update(value=t["run_button"]),
@@ -382,6 +422,8 @@ def build_interface():
                 bsss_thrill,
                 bsss_disinhibition,
                 bsss_boredom,
+                erq_reappraisal,
+                erq_suppression,
                 audio_in,
                 manual_text,
                 run_button,

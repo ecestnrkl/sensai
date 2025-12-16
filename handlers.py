@@ -4,6 +4,8 @@ import random
 import time
 from typing import Dict, List, Optional, Tuple
 
+import gradio as gr
+
 from audio_io import synthesize_speech, transcribe_audio
 from data import SCENARIO_LABEL_TO_ID, SCENARIO_LOOKUP
 from llm_client import (
@@ -47,6 +49,8 @@ def ensure_results_file():
         "bsss_thrill",
         "bsss_disinhibition",
         "bsss_boredom",
+        "erq_reappraisal",
+        "erq_suppression",
         "persona_summary",
         "driver_transcript",
         "llm_response",
@@ -79,6 +83,8 @@ def append_result_row(row: Dict[str, str]) -> str:
                 row.get("bsss_thrill"),
                 row.get("bsss_disinhibition"),
                 row.get("bsss_boredom"),
+                row.get("erq_reappraisal"),
+                row.get("erq_suppression"),
                 row.get("persona_summary"),
                 row.get("driver_transcript"),
                 row.get("llm_response"),
@@ -121,6 +127,8 @@ def save_condition(condition_key: str, state: dict):
         "bsss_thrill": state.get("bsss_thrill"),
         "bsss_disinhibition": state.get("bsss_disinhibition"),
         "bsss_boredom": state.get("bsss_boredom"),
+        "erq_reappraisal": state.get("erq_reappraisal"),
+        "erq_suppression": state.get("erq_suppression"),
         "persona_summary": state.get("persona_summary", ""),
         "driver_transcript": state.get("transcript", ""),
         "llm_response": condition_info.get("llm_response", ""),
@@ -144,6 +152,8 @@ def handle_run(
     bsss_thrill: int,
     bsss_disinhibition: int,
     bsss_boredom: int,
+    erq_reappraisal: int,
+    erq_suppression: int,
     condition_order: str,
     language: str,
     endpoint_url: str,
@@ -157,9 +167,12 @@ def handle_run(
         return (
             "",
             "",
-            "Bitte einen LLM Endpoint eintragen (z.B. http://localhost:8000).",
+            gr.update(
+                value="Bitte einen LLM Endpoint eintragen (z.B. http://localhost:8000).",
+                elem_classes=["cond-response"],
+            ),
             None,
-            "",
+            gr.update(value="", elem_classes=["cond-response"]),
             None,
             "",
             "",
@@ -171,9 +184,12 @@ def handle_run(
         return (
             "",
             "",
-            "Bitte einen Modellnamen eintragen (z.B. llama-2-7b-chat).",
+            gr.update(
+                value="Bitte einen Modellnamen eintragen (z.B. llama-2-7b-chat).",
+                elem_classes=["cond-response"],
+            ),
             None,
-            "",
+            gr.update(value="", elem_classes=["cond-response"]),
             None,
             "",
             "",
@@ -186,9 +202,9 @@ def handle_run(
         return (
             "",
             "",
-            "Select a scenario first.",
+            gr.update(value="Select a scenario first.", elem_classes=["cond-response"]),
             None,
-            "",
+            gr.update(value="", elem_classes=["cond-response"]),
             None,
             "",
             "",
@@ -227,6 +243,8 @@ def handle_run(
         bsss_thrill,
         bsss_disinhibition,
         bsss_boredom,
+        erq_reappraisal,
+        erq_suppression,
         response_lang,
     )
 
@@ -320,6 +338,8 @@ def handle_run(
         "bsss_thrill": bsss_thrill,
         "bsss_disinhibition": bsss_disinhibition,
         "bsss_boredom": bsss_boredom,
+        "erq_reappraisal": erq_reappraisal,
+        "erq_suppression": erq_suppression,
         "conditions": condition_data,
         "prompts": prompt_debug,
         "chat_history": existing_history,
@@ -336,12 +356,26 @@ def handle_run(
     if transcript_error:
         transcript_display = f"{transcript}\n[{transcript_error}]"
 
+    def _response_classes(condition: str) -> List[str]:
+        classes = ["cond-response"]
+        if condition == "personalized":
+            classes.append("cond-personalized")
+        elif condition == "non_personalized":
+            classes.append("cond-nonpersonalized")
+        return classes
+
     return (
         transcript_display,
         persona_display,
-        f"{cond1_text}\nLatency: {cond1_latency}",
+        gr.update(
+            value=f"{cond1_text}\nLatency: {cond1_latency}",
+            elem_classes=_response_classes(cond1[3]),
+        ),
         cond1[1],
-        f"{cond2_text}\nLatency: {cond2_latency}",
+        gr.update(
+            value=f"{cond2_text}\nLatency: {cond2_latency}",
+            elem_classes=_response_classes(cond2[3]),
+        ),
         cond2[1],
         prompt_debug.get("condition1", ""),
         prompt_debug.get("condition2", ""),
@@ -366,6 +400,8 @@ def handle_checkin(
     bsss_thrill: int,
     bsss_disinhibition: int,
     bsss_boredom: int,
+    erq_reappraisal: int,
+    erq_suppression: int,
     language: str,
     endpoint_url: str,
     model_name: str,
@@ -389,6 +425,8 @@ def handle_checkin(
         bsss_thrill,
         bsss_disinhibition,
         bsss_boredom,
+        erq_reappraisal,
+        erq_suppression,
         response_lang,
     )
     system_prompt, user_prompt_text = checkin_prompts(scenario_id, response_lang, persona_summary)
