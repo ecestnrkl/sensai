@@ -1,20 +1,14 @@
 [
   {
-    "id": "child_road",
-    "title": "Child Runs Onto Road",
-    "text": "You are driving through a residential area when a small child suddenly runs onto the road between parked cars.",
-    "text_de": "Du fährst durch ein Wohngebiet, als plötzlich ein kleines Kind zwischen parkenden Autos auf die Straße läuft."
+    "id": "job_interview_time_pressure",
+    "title": "Job Interview Time Pressure",
+    "text": "Imagine you are driving to a critical job interview. There are just five minutes left until your appointment, and traffic congestion is worse than expected. If you arrive late, you lose your chance at your dream job. The navigation app shows red everywhere, every minute counts.",
+    "text_de": "Stell dir vor, du fährst zu einem entscheidenden Vorstellungsgespräch. Es sind nur noch fünf Minuten bis zum Termin, und der Verkehr ist schlimmer als erwartet. Wenn du zu spät kommst, verpasst du die Chance auf deinen Traumjob. Die Navi-App zeigt überall Rot – jede Minute zählt."
   },
   {
-    "id": "traffic_jam",
-    "title": "Gridlock Boredom",
-    "text": "You are stuck in a long traffic jam on the highway with no clear information on when it will clear.",
-    "text_de": "Du steckst in einem langen Stau auf der Autobahn und weißt nicht, wann er sich auflöst."
-  },
-  {
-    "id": "night_fatigue",
-    "title": "Nighttime Fatigue",
-    "text": "It is late at night on a long stretch of highway and you feel drowsy while trying to stay alert.",
-    "text_de": "Es ist spät in der Nacht auf einer langen Autobahnstrecke und du fühlst dich schläfrig, willst aber wach bleiben."
+    "id": "exam_presentation_deadline",
+    "title": "Exam or Critical Presentation Deadline",
+    "text": "You are on your way to take an entrance exam for a university program, but traffic has slowed to a crawl. You know that if you’re even a minute late, you’ll be locked out and your academic future is at risk. Pressure builds as every delay threatens your goal.",
+    "text_de": "Du bist auf dem Weg zu einer Aufnahmeprüfung für ein Studienprogramm, aber der Verkehr schleicht nur noch voran. Du weißt, dass du bereits bei einer Minute Verspätung nicht mehr hineingelassen wirst und deine akademische Zukunft auf dem Spiel steht. Der Druck steigt, weil jede Verzögerung dein Ziel gefährdet."
   }
 ]
