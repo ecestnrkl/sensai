@@ -9,19 +9,52 @@ def format_driver_scenario(text: str) -> str:
     if not text:
         return ""
     t = text.strip()
-    patterns = [
-        (r"^du\s+fühlst\s+dich\s+", "Der Fahrer fühlt sich "),
-        (r"^du\s+fühlst\s+", "Der Fahrer fühlt sich "),
-        (r"^du\s+fährst\s+", "Der Fahrer fährt "),
-        (r"^du\s+steckst\s+", "Der Fahrer steckt "),
-        (r"^du\s+bist\s+", "Der Fahrer ist "),
-        (r"^du\s+hast\s+", "Der Fahrer hat "),
-        (r"^du\s+", "Der Fahrer "),
-    ]
-    for pattern, replacement in patterns:
-        if re.search(pattern, t, flags=re.IGNORECASE):
-            t = re.sub(pattern, replacement, t, count=1, flags=re.IGNORECASE)
-            break
+
+    # Drop "Imagine..." / "Stell dir vor..." intros so the scenario reads as direct context.
+    t = re.sub(r"^(stell dir vor)(,)?\s+", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^(imagine)( that)?(,)?\s+", "", t, flags=re.IGNORECASE)
+
+    # German: map 2nd-person ("du/dein") to driver context.
+    if re.search(r"\bdu\b|\bdein", t, flags=re.IGNORECASE):
+        t = re.sub(r"\bfühlst\s+dich\b", "fühlt sich", t, flags=re.IGNORECASE)
+        replacements = [
+            (r"\bdeinen\b", "seinen"),
+            (r"\bdeinem\b", "seinem"),
+            (r"\bdeiner\b", "seiner"),
+            (r"\bdeine\b", "seine"),
+            (r"\bdein\b", "sein"),
+            (r"\bdu\b", "der Fahrer"),
+            (r"\bbist\b", "ist"),
+            (r"\bhast\b", "hat"),
+            (r"\bfährst\b", "fährt"),
+            (r"\bsteckst\b", "steckt"),
+            (r"\bfühlst\b", "fühlt"),
+            (r"\bkommst\b", "kommt"),
+            (r"\bweißt\b", "weiß"),
+            (r"\bwirst\b", "wird"),
+        ]
+        for pattern, replacement in replacements:
+            t = re.sub(pattern, replacement, t, flags=re.IGNORECASE)
+        t = re.sub(r"(^|[.!?]\s+)der Fahrer\b", r"\1Der Fahrer", t)
+
+    # English: map 2nd-person ("you/your") to driver context.
+    elif re.search(r"\byou\b|\byour\b|\byou['’](re|ll|ve|d)\b", t, flags=re.IGNORECASE):
+        t = re.sub(
+            r"(^|[.!?]\s+)you\s+know\b", r"\1The driver knows", t, flags=re.IGNORECASE
+        )
+        t = re.sub(
+            r"(^|[.!?]\s+)you\s+are\b", r"\1The driver is", t, flags=re.IGNORECASE
+        )
+        t = re.sub(
+            r"(^|[.!?]\s+)you['’]re\b", r"\1The driver is", t, flags=re.IGNORECASE
+        )
+        t = re.sub(r"\byou['’]re\b", "they are", t, flags=re.IGNORECASE)
+        t = re.sub(r"\byou['’]ll\b", "they will", t, flags=re.IGNORECASE)
+        t = re.sub(r"\byou['’]ve\b", "they have", t, flags=re.IGNORECASE)
+        t = re.sub(r"\byou['’]d\b", "they would", t, flags=re.IGNORECASE)
+        t = re.sub(r"\byour\b", "their", t, flags=re.IGNORECASE)
+        t = re.sub(r"\byou\b", "they", t, flags=re.IGNORECASE)
+
     t = re.sub(r"\s+", " ", t)
     t = re.sub(r"\.{2,}", ".", t)
     t = t.rstrip(" .")
@@ -108,6 +141,7 @@ def base_system_prompt(scenario_id: str, response_lang: str) -> str:
             "Klingt wie gesprochene Sprache: locker, freundlich, aber klar. "
             "Keine Meta-Einleitungen oder Füllwörter ('natürlich', 'okay', 'hier ist'), keine Listen/Nummerierungen. "
             "Antworte direkt, klar und grammatikalisch sauber. "
+            "Das Szenario beschreibt die Situation des Fahrers (nicht deine eigene). "
             f"Szenario: {scenario_text}"
         )
     return (
@@ -116,6 +150,7 @@ def base_system_prompt(scenario_id: str, response_lang: str) -> str:
         "Sound like natural spoken language: friendly, concise, no lists/numbering. "
         "No meta openers or fillers (e.g., 'Of course', 'Sure', 'Here are'). "
         "Answer directly, clearly, with proper grammar. "
+        "The scenario describes the driver's situation (not yours). "
         f"Scenario context: {scenario_text}"
     )
 
@@ -144,6 +179,7 @@ def checkin_prompts(
         system_prompt = (
             "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, genau zwei kurze, vollständige Sätze (<30 Wörter). "
             "Keine englischen Wörter oder Halbsätze. Keine Füllwörter oder Ich-Aussagen über dein Befinden. Ruhiger Navi-Ton. "
+            "Das Szenario beschreibt die Situation des Fahrers (nicht deine eigene). "
             f"Szenario: {scenario_text}. Persona hints: {persona_summary}"
         )
         user_prompt = (
@@ -155,6 +191,7 @@ def checkin_prompts(
         system_prompt = (
             "You are a voice assistant in a vehicle. Answer only in English, exactly two short, complete sentences (<30 words). "
             "No German words or code-switching. No meta phrases or filler. Calm navigation tone. "
+            "The scenario describes the driver's situation (not yours). "
             f"Scenario: {scenario_text}. Persona hints: {persona_summary}"
         )
         user_prompt = (
