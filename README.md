@@ -73,10 +73,10 @@ Open the printed Gradio URL in your browser.
 1. Open **Experiment** tab.  
 2. Set Participant ID, choose scenario (text shown).  
 3. Pick language (en/de) – replies + TTS follow this.  
-4. Set Big Five/DBQ/BSSS, choose condition order.  
+4. Set Big Five/DBQ/BSSS/ERQ and pick the LLM response mode (both vs single).  
 5. Adjust endpoint/model if needed (Ollama defaults are prefilled).  
 6. Input via mic (push-to-talk) or text box.  
-7. Click **Run both conditions** → two replies (personalized / non personalized) with text + TTS.  
+7. Click **Generate response(s)** → one or two replies (depending on mode) with text + TTS.  
 8. Optional **Save Condition 1/2**: append row to `results.csv` (no ratings).  
 9. Check-in: **Trigger Check-in** gives a short question + optional boredom tip.
 
@@ -146,8 +146,8 @@ Gradio-URL im Browser öffnen.
 
 ### Nutzung
 - Warmup laden, LLM-Verbindung testen.
-- Im Tab **Experiment**: ID setzen, Szenario wählen, Sprache (de/en), Slider ausfüllen, Endpoint prüfen, Audio oder Text eingeben, **Run both conditions** drücken.
-- Zwei Antworten (personalized / non personalized) als Text + TTS; optional speichern in `results.csv`.
+- Im Tab **Experiment**: ID setzen, Szenario wählen, Sprache (de/en), Slider ausfüllen, Antwortmodus wählen, Endpoint prüfen, Audio oder Text eingeben, **Antwort(en) generieren** drücken.
+- Je nach Modus eine oder zwei Antworten (personalisiert / nicht personalisiert) als Text + TTS; optional speichern in `results.csv`.
 - Check-in: **Trigger Check-in** liefert Frage + optionalen Langeweile-Tipp.
 
 ### Dateien

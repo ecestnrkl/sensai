@@ -1,9 +1,8 @@
 import csv
 import datetime
-import random
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import gradio as gr
 
@@ -19,15 +18,6 @@ from llm_client import (
 )
 from prompts import base_system_prompt, build_persona_summary, checkin_prompts, user_prompt
 from settings import RESULTS_PATH
-
-
-def resolve_condition_order(order: str) -> Tuple[str, str]:
-    if order == "personalized first":
-        return ("personalized", "non_personalized")
-    if order == "non personalized first":
-        return ("non_personalized", "personalized")
-    shuffled = random.sample(["personalized", "non_personalized"], k=2)
-    return shuffled[0], shuffled[1]
 
 
 def ensure_results_file():
@@ -155,7 +145,7 @@ def handle_run(
     bsss_boredom: int,
     erq_reappraisal: int,
     erq_suppression: int,
-    condition_order: str,
+    run_mode: str,
     language: str,
     endpoint_url: str,
     model_name: str,
@@ -254,7 +244,12 @@ def handle_run(
 
     base_system = base_system_prompt(scenario_id, response_lang)
 
-    order = resolve_condition_order(condition_order)
+    if run_mode == "personalized":
+        order = ("personalized",)
+    elif run_mode == "non_personalized":
+        order = ("non_personalized",)
+    else:
+        order = ("personalized", "non_personalized")
     outputs = []
     condition_data = {}
     tts_futures = {}
@@ -356,7 +351,7 @@ def handle_run(
         cond1_latency = f"{cond1[2]:.2f}s" if cond1[2] else ""
         cond2_latency = f"{cond2[2]:.2f}s" if cond2[2] else ""
 
-        persona_display = f"{persona_summary}\nCondition order: {', '.join(order)}"
+        persona_display = persona_summary
         transcript_display = transcript
         if transcript_error:
             transcript_display = f"{transcript}\n[{transcript_error}]"
@@ -370,7 +365,9 @@ def handle_run(
             return classes
 
         cond1_display_text = f"{cond1_text}\nLLM latency: {cond1_latency}"
-        cond2_display_text = f"{cond2_text}\nLLM latency: {cond2_latency}"
+        cond2_display_text = ""
+        if len(order) > 1:
+            cond2_display_text = f"{cond2_text}\nLLM latency: {cond2_latency}"
 
         yield (
             transcript_display,
@@ -470,6 +467,7 @@ def handle_checkin(
     bsss_boredom: int,
     erq_reappraisal: int,
     erq_suppression: int,
+    run_mode: str,
     language: str,
     endpoint_url: str,
     model_name: str,
@@ -499,7 +497,10 @@ def handle_checkin(
         erq_suppression,
         response_lang,
     )
-    system_prompt, user_prompt_text = checkin_prompts(scenario_id, response_lang, persona_summary)
+    include_persona = run_mode != "non_personalized"
+    system_prompt, user_prompt_text = checkin_prompts(
+        scenario_id, response_lang, persona_summary, include_persona=include_persona
+    )
     prompt_debug = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
     llm_response, llm_error = call_llm(endpoint_url, model_name, system_prompt, user_prompt_text)
     if llm_error:

@@ -176,7 +176,7 @@ def user_prompt(transcript: str, response_lang: str) -> str:
 
 
 def checkin_prompts(
-    scenario_id: str, response_lang: str, persona_summary: str
+    scenario_id: str, response_lang: str, persona_summary: str, include_persona: bool
 ) -> Tuple[str, str]:
     scenario_text = format_driver_scenario(get_scenario_text(scenario_id, response_lang))
     if response_lang == "de":
@@ -184,8 +184,10 @@ def checkin_prompts(
             "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, genau zwei kurze, vollständige Sätze (<30 Wörter). "
             "Keine englischen Wörter oder Halbsätze. Keine Füllwörter oder Ich-Aussagen über dein Befinden. Ruhiger Navi-Ton. "
             "Das Szenario beschreibt die Situation des Fahrers (nicht deine eigene). "
-            f"Szenario: {scenario_text}. Persona hints: {persona_summary}"
+            f"Szenario: {scenario_text}"
         )
+        if include_persona:
+            system_prompt = f"{system_prompt} Persona hints: {persona_summary}"
         user_prompt = (
             "Stelle dem Fahrer eine kurze, ruhige Frage wie 'Wie geht es Ihnen gerade?'. "
             "Keine englischen Wörter. Keine Ich-Aussagen über Stimmung ('mir geht es', 'ich fühle', 'ich bin'). "
@@ -196,8 +198,10 @@ def checkin_prompts(
             "You are a voice assistant in a vehicle. Answer only in English, exactly two short, complete sentences (<30 words). "
             "No German words or code-switching. No meta phrases or filler. Calm navigation tone. "
             "The scenario describes the driver's situation (not yours). "
-            f"Scenario: {scenario_text}. Persona hints: {persona_summary}"
+            f"Scenario: {scenario_text}"
         )
+        if include_persona:
+            system_prompt = f"{system_prompt} Persona hints: {persona_summary}"
         user_prompt = (
             "Ask the driver a short, calm check-in question like 'How are you doing right now?'. "
             "No German words. No self-talk about your own feelings. No lists; do not echo the prompt or input."
