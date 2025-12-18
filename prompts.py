@@ -123,14 +123,14 @@ def build_persona_summary(
         summary_parts.append(
             f"Big Five (1-5): O={o}, C={c}, E={e}, A={a}, N={n}. "
             f"Mini-DBQ (1-5): Verstoesse={dbq_violations}, Fehler={dbq_errors}, Unaufmerksamkeiten={dbq_lapses}. "
-            f"BSSS (1-7): Erfahrung={bsss_experience}, Thrill={bsss_thrill}, Enthemmung={bsss_disinhibition}, Langeweile={bsss_boredom}. "
+            f"BSSS (1-5): Erfahrung={bsss_experience}, Thrill={bsss_thrill}, Enthemmung={bsss_disinhibition}, Langeweile={bsss_boredom}. "
             f"ERQ (1-7): Cognitive Reappraisal={erq_reappraisal}, Expressive Suppression={erq_suppression}."
         )
     else:
         summary_parts.append(
             f"Big Five (1-5): O={o}, C={c}, E={e}, A={a}, N={n}. "
             f"Mini-DBQ (1-5): violations={dbq_violations}, errors={dbq_errors}, lapses={dbq_lapses}. "
-            f"BSSS (1-7): experience={bsss_experience}, thrill={bsss_thrill}, disinhibition={bsss_disinhibition}, boredom={bsss_boredom}. "
+            f"BSSS (1-5): experience={bsss_experience}, thrill={bsss_thrill}, disinhibition={bsss_disinhibition}, boredom={bsss_boredom}. "
             f"ERQ (1-7): cognitive reappraisal={erq_reappraisal}, expressive suppression={erq_suppression}."
         )
     return " ".join([p.strip() for p in summary_parts if p]).strip()
