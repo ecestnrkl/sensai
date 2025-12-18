@@ -352,7 +352,7 @@ def build_interface():
             outputs=llm_status,
         )
         warmup_btn.click(
-            lambda: warm_up_models(),
+            warm_up_models,
             inputs=None,
             outputs=warmup_status,
         )

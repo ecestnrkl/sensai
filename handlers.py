@@ -1,10 +1,10 @@
 import csv
 import datetime
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
-import gradio as gr
+import gradio as gr  # type: ignore[import-untyped]
 
 from audio_io import synthesize_speech, transcribe_audio
 from data import SCENARIO_LABEL_TO_ID, SCENARIO_LOOKUP
@@ -20,7 +20,7 @@ from prompts import base_system_prompt, build_persona_summary, checkin_prompts, 
 from settings import RESULTS_PATH
 
 
-def ensure_results_file():
+def ensure_results_file() -> None:
     if RESULTS_PATH.exists():
         return
     header = [
@@ -52,7 +52,7 @@ def ensure_results_file():
         writer.writerow(header)
 
 
-def append_result_row(row: Dict[str, str]) -> str:
+def append_result_row(row: Dict[str, Any]) -> str:
     ensure_results_file()
     with open(RESULTS_PATH, "a", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
@@ -86,7 +86,7 @@ def append_result_row(row: Dict[str, str]) -> str:
 
 
 def _history_to_messages(history: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    """Convert stored history to gr.Chatbot message format (list of role/content dicts)."""
+    """Convert stored history to gr.Chatbot message format (role/content dicts)."""
     messages: List[Dict[str, str]] = []
     for msg in history:
         role = (msg or {}).get("role")
@@ -94,10 +94,11 @@ def _history_to_messages(history: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if not role or content is None:
             continue
         messages.append({"role": role, "content": content})
+    print(f"DEBUG _history_to_messages: input={history}, output={messages}")  # DEBUG
     return messages
 
 
-def save_condition(condition_key: str, state: dict):
+def save_condition(condition_key: str, state: Dict[str, Any]) -> str:
     if not state or not state.get("conditions") or condition_key not in state["conditions"]:
         return "Nothing to save. Run the experiment first."
     condition_info = state["conditions"][condition_key]
@@ -128,6 +129,167 @@ def save_condition(condition_key: str, state: dict):
     return append_result_row(row)
 
 
+# Type aliases for clarity
+ValidationResult = Optional[Tuple[str, str, Any, None, Any, None, str, str, List[Any], List[Any], Dict[str, Any]]]
+TranscriptResult = Tuple[str, Optional[str], str]
+ConditionResult = Tuple[str, Optional[str], float, str]
+
+
+def _validate_inputs(
+    endpoint_url: str,
+    model_name: str,
+    scenario_label: str,
+) -> ValidationResult:
+    """Validate required inputs. Returns error tuple if validation fails, None if successful."""
+    error_tuple_template: Tuple[str, str, Any, None, Any, None, str, str, List[Any], List[Any], Dict[str, Any]] = (
+        "",
+        "",
+        gr.update(value="", elem_classes=["cond-response"]),
+        None,
+        gr.update(value="", elem_classes=["cond-response"]),
+        None,
+        "",
+        "",
+        [],
+        [],
+        {},
+    )
+    
+    if not endpoint_url.strip():
+        return (
+            "",
+            "",
+            gr.update(
+                value="Bitte einen LLM Endpoint eintragen (z.B. http://localhost:8000).",
+                elem_classes=["cond-response"],
+            ),
+            None,
+            gr.update(value="", elem_classes=["cond-response"]),
+            None,
+            "",
+            "",
+            [],
+            [],
+            {},
+        )
+    
+    if not model_name.strip():
+        return (
+            "",
+            "",
+            gr.update(
+                value="Bitte einen Modellnamen eintragen (z.B. llama-2-7b-chat).",
+                elem_classes=["cond-response"],
+            ),
+            None,
+            gr.update(value="", elem_classes=["cond-response"]),
+            None,
+            "",
+            "",
+            [],
+            [],
+            {},
+        )
+    
+    scenario_id = SCENARIO_LABEL_TO_ID.get(scenario_label, scenario_label)
+    if not scenario_id or scenario_id not in SCENARIO_LOOKUP:
+        return (
+            "",
+            "",
+            gr.update(value="Select a scenario first.", elem_classes=["cond-response"]),
+            None,
+            gr.update(value="", elem_classes=["cond-response"]),
+            None,
+            "",
+            "",
+            [],
+            [],
+            {},
+        )
+    
+    return None
+
+
+def _get_transcript(
+    audio_path: Optional[str],
+    manual_text: str,
+    language: str,
+    scenario_id: str,
+) -> TranscriptResult:
+    """Get transcript from audio or manual text. Returns (transcript, error, detected_lang)."""
+    manual_text = (manual_text or "").strip()
+    transcript_error: Optional[str] = None
+    detected_lang: Optional[str] = None
+    
+    if manual_text:
+        transcript = manual_text
+        detected_lang = language
+    else:
+        transcript, transcript_error, detected_lang = transcribe_audio(audio_path, language_hint=language)
+        if not transcript:
+            transcript = SCENARIO_LOOKUP[scenario_id]["text"]
+    
+    response_lang = detected_lang if detected_lang in ("en", "de") else language
+    return transcript, transcript_error, response_lang
+
+
+def _generate_llm_response(
+    endpoint_url: str,
+    model_name: str,
+    scenario_id: str,
+    transcript: str,
+    response_lang: str,
+    persona_summary: str,
+    condition: str,
+    existing_history: List[Dict[str, str]],
+) -> Tuple[str, Optional[str], float, str]:
+    """Generate a single LLM response for one condition.
+    
+    Returns: (cleaned_response, llm_error, latency, debug_prompt)
+    """
+    base_system = base_system_prompt(scenario_id, response_lang)
+    system_prompt = base_system
+    if condition == "personalized":
+        system_prompt = f"{base_system} Persona hints: {persona_summary}"
+    
+    user_prompt_text = user_prompt(transcript, response_lang)
+    prompt_debug = f"SYSTEM:\\n{system_prompt}\\n\\nUSER:\\n{user_prompt_text}"
+    
+    start_time = time.time()
+    llm_response, llm_error = call_llm(
+        endpoint_url,
+        model_name,
+        system_prompt,
+        user_prompt_text,
+        chat_history=existing_history,
+    )
+    llm_latency = time.time() - start_time
+    
+    if llm_error or not llm_response:
+        error_msg = f"{condition.title()} error: {llm_error or 'No response'}"
+        return error_msg, llm_error or "No response", llm_latency, prompt_debug
+    
+    cleaned_response = sanitize_llm_output(llm_response)
+    cleaned_response = filter_by_language(cleaned_response, response_lang)
+    if looks_wrong_language(cleaned_response, response_lang):
+        rewritten = rewrite_for_language(endpoint_url, model_name, cleaned_response, response_lang)
+        if rewritten:
+            cleaned_response = rewritten
+    cleaned_response = truncate_response(cleaned_response, response_lang)
+    
+    return cleaned_response, None, llm_latency, prompt_debug
+
+
+def _response_classes(condition: str) -> List[str]:
+    """Get CSS classes for response display based on condition."""
+    classes = ["cond-response"]
+    if condition == "personalized":
+        classes.append("cond-personalized")
+    elif condition == "non_personalized":
+        classes.append("cond-nonpersonalized")
+    return classes
+
+
 def handle_run(
     participant_id: str,
     scenario_label: str,
@@ -151,79 +313,33 @@ def handle_run(
     model_name: str,
     audio_path: Optional[str],
     manual_text: str = "",
-    state: Optional[dict] = None,
-):
+    state: Optional[Dict[str, Any]] = None,
+) -> Generator[Tuple[Any, ...], None, None]:
+    """Main handler for experiment runs. Generates LLM responses for 1-2 conditions."""
     state = state or {}
-    if not endpoint_url.strip():
-        yield (
-            "",
-            "",
-            gr.update(
-                value="Bitte einen LLM Endpoint eintragen (z.B. http://localhost:8000).",
-                elem_classes=["cond-response"],
-            ),
-            None,
-            gr.update(value="", elem_classes=["cond-response"]),
-            None,
-            "",
-            "",
-            [],
-            [],
-            {},
-        )
+    
+    # Validate inputs
+    validation_error = _validate_inputs(endpoint_url, model_name, scenario_label)
+    if validation_error:
+        yield validation_error
         return
-    if not model_name.strip():
-        yield (
-            "",
-            "",
-            gr.update(
-                value="Bitte einen Modellnamen eintragen (z.B. llama-2-7b-chat).",
-                elem_classes=["cond-response"],
-            ),
-            None,
-            gr.update(value="", elem_classes=["cond-response"]),
-            None,
-            "",
-            "",
-            [],
-            [],
-            {},
-        )
-        return
+    
     scenario_id = SCENARIO_LABEL_TO_ID.get(scenario_label, scenario_label)
-    if not scenario_id or scenario_id not in SCENARIO_LOOKUP:
-        yield (
-            "",
-            "",
-            gr.update(value="Select a scenario first.", elem_classes=["cond-response"]),
-            None,
-            gr.update(value="", elem_classes=["cond-response"]),
-            None,
-            "",
-            "",
-            [],
-            [],
-            {},
-        )
-        return
-    existing_history = {}
+    
+    # Get conversation history
+    existing_history: Dict[str, List[Dict[str, str]]] = {}
     for key, history in (state.get("chat_history") or {}).items():
         try:
             existing_history[key] = [dict(msg) for msg in history]  # shallow copy
         except Exception:
             existing_history[key] = []
+    
+    # Get transcript
+    transcript, transcript_error, response_lang = _get_transcript(
+        audio_path, manual_text, language, scenario_id
+    )
 
-    manual_text = (manual_text or "").strip()
-    transcript_error = None
-    detected_lang = None
-    if manual_text:
-        transcript = manual_text
-    else:
-        transcript, transcript_error, detected_lang = transcribe_audio(audio_path, language_hint=language)
-        if not transcript:
-            transcript = SCENARIO_LOOKUP[scenario_id]["text"]
-    response_lang = detected_lang if detected_lang in ("en", "de") else language
-
+    # Build persona summary
     persona_summary = build_persona_summary(
         o,
         c,
@@ -242,78 +358,69 @@ def handle_run(
         response_lang,
     )
 
-    base_system = base_system_prompt(scenario_id, response_lang)
-
+    # Determine which conditions to run
+    order: Tuple[str, ...]
     if run_mode == "personalized":
         order = ("personalized",)
     elif run_mode == "non_personalized":
         order = ("non_personalized",)
     else:
         order = ("personalized", "non_personalized")
-    outputs = []
-    condition_data = {}
-    tts_futures = {}
+    
+    # Generate responses for each condition
+    outputs: List[ConditionResult] = []
+    condition_data: Dict[str, Dict[str, Any]] = {}
+    tts_futures: Dict[str, Optional[Future[Tuple[Optional[str], Optional[str]]]]] = {}
     prompt_debug: Dict[str, str] = {}
 
     with ThreadPoolExecutor(max_workers=1) as tts_pool:
         for idx, condition in enumerate(order, start=1):
             condition_key = f"condition{idx}"
-            system_prompt = base_system
-            if condition == "personalized":
-                system_prompt = f"{base_system} Persona hints: {persona_summary}"
-
-            user_prompt_text = user_prompt(transcript, response_lang)
-            prompt_debug[condition_key] = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
-
-            start_time = time.time()
-            llm_response, llm_error = call_llm(
+            
+            # Generate LLM response
+            llm_response, llm_error, llm_latency, debug_prompt = _generate_llm_response(
                 endpoint_url,
                 model_name,
-                system_prompt,
-                user_prompt_text,
-                chat_history=existing_history.get(condition, []),
+                scenario_id,
+                transcript,
+                response_lang,
+                persona_summary,
+                condition,
+                existing_history.get(condition, []),
             )
-            llm_latency = time.time() - start_time
+            
+            prompt_debug[condition_key] = debug_prompt
+            
+            # Store response data
             if llm_error:
-                error_text = f"{condition.title()} error: {llm_error}"
-                outputs.append((error_text, None, llm_latency, condition))
+                outputs.append((llm_response, None, llm_latency, condition))
                 condition_data[condition_key] = {
                     "condition": condition,
-                    "llm_response": error_text,
+                    "llm_response": llm_response,
                     "audio_path": None,
                     "latency": llm_latency,
                     "llm_error": llm_error,
                 }
                 tts_futures[condition_key] = None
-                new_history = list(existing_history.get(condition, []))
-                new_history.append({"role": "user", "content": user_prompt_text})
-                new_history.append({"role": "assistant", "content": error_text})
-                existing_history[condition] = new_history
-                continue
-
-            cleaned_response = sanitize_llm_output(llm_response)
-            cleaned_response = filter_by_language(cleaned_response, response_lang)
-            if looks_wrong_language(cleaned_response, response_lang):
-                rewritten = rewrite_for_language(endpoint_url, model_name, cleaned_response, response_lang)
-                if rewritten:
-                    cleaned_response = rewritten
-            cleaned_response = truncate_response(cleaned_response, response_lang)
-
-            outputs.append((cleaned_response, None, llm_latency, condition))
-            condition_data[condition_key] = {
-                "condition": condition,
-                "llm_response": cleaned_response,
-                "audio_path": None,
-                "latency": llm_latency,
-                "llm_error": None,
-            }
-            tts_futures[condition_key] = tts_pool.submit(
-                synthesize_speech, cleaned_response, response_lang, f"{condition}_{idx}"
-            )
-
+            else:
+                outputs.append((llm_response, None, llm_latency, condition))
+                condition_data[condition_key] = {
+                    "condition": condition,
+                    "llm_response": llm_response,
+                    "audio_path": None,
+                    "latency": llm_latency,
+                    "llm_error": None,
+                }
+                # Queue TTS generation
+                tts_futures[condition_key] = tts_pool.submit(
+                    synthesize_speech, llm_response, response_lang, f"{condition}_{idx}"
+                )
+            
+            # Update conversation history
+            # Store raw transcript for chatbot display, but LLM gets the wrapped prompt
             new_history = list(existing_history.get(condition, []))
-            new_history.append({"role": "user", "content": user_prompt_text})
-            new_history.append({"role": "assistant", "content": cleaned_response})
+            new_history.append({"role": "user", "content": transcript})
+            new_history.append({"role": "assistant", "content": llm_response})
             existing_history[condition] = new_history
 
         while len(outputs) < 2:
@@ -354,20 +461,12 @@ def handle_run(
         persona_display = persona_summary
         transcript_display = transcript
         if transcript_error:
-            transcript_display = f"{transcript}\n[{transcript_error}]"
+            transcript_display = f"{transcript}\\n[{transcript_error}]"
 
-        def _response_classes(condition: str) -> List[str]:
-            classes = ["cond-response"]
-            if condition == "personalized":
-                classes.append("cond-personalized")
-            elif condition == "non_personalized":
-                classes.append("cond-nonpersonalized")
-            return classes
-
-        cond1_display_text = f"{cond1_text}\nLLM latency: {cond1_latency}"
+        cond1_display_text = f"{cond1_text}\\nLLM latency: {cond1_latency}"
         cond2_display_text = ""
         if len(order) > 1:
-            cond2_display_text = f"{cond2_text}\nLLM latency: {cond2_latency}"
+            cond2_display_text = f"{cond2_text}\\nLLM latency: {cond2_latency}"
 
         yield (
             transcript_display,
@@ -408,9 +507,11 @@ def handle_run(
                 tts_path, tts_error = future.result()
             except Exception as exc:  # pragma: no cover - runtime safeguard
                 tts_path, tts_error = None, f"TTS error: {exc}"
-            info["audio_path"] = tts_path
-            info["tts_error"] = tts_error
-            condition_data[condition_key] = info
+            
+            # Update condition_data properly
+            if condition_key in condition_data:
+                condition_data[condition_key]["audio_path"] = tts_path
+                condition_data[condition_key]["tts_error"] = tts_error
             state["conditions"] = condition_data
 
             cond1_audio_out = gr.update()
@@ -471,7 +572,7 @@ def handle_checkin(
     language: str,
     endpoint_url: str,
     model_name: str,
-):
+) -> Generator[Tuple[Any, ...], None, None]:
     if not endpoint_url.strip():
         yield "Bitte Endpoint eintragen.", None, ""
         return
@@ -503,8 +604,8 @@ def handle_checkin(
     )
     prompt_debug = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
     llm_response, llm_error = call_llm(endpoint_url, model_name, system_prompt, user_prompt_text)
-    if llm_error:
-        yield f"Check-in error: {llm_error}", None, prompt_debug
+    if llm_error or not llm_response:
+        yield f"Check-in error: {llm_error or 'No response'}", None, prompt_debug
         return
     cleaned = sanitize_llm_output(llm_response)
     cleaned = filter_by_language(cleaned, response_lang)
