@@ -475,9 +475,11 @@ def handle_checkin(
     model_name: str,
 ):
     if not endpoint_url.strip():
-        return "Bitte Endpoint eintragen.", None, ""
+        yield "Bitte Endpoint eintragen.", None, ""
+        return
     if not model_name.strip():
-        return "Bitte Modellnamen eintragen.", None, ""
+        yield "Bitte Modellnamen eintragen.", None, ""
+        return
     scenario_id = SCENARIO_LABEL_TO_ID.get(scenario_label, scenario_label)
     response_lang = language if language in ("en", "de") else "en"
     persona_summary = build_persona_summary(
@@ -501,7 +503,8 @@ def handle_checkin(
     prompt_debug = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
     llm_response, llm_error = call_llm(endpoint_url, model_name, system_prompt, user_prompt_text)
     if llm_error:
-        return f"Check-in error: {llm_error}", None, prompt_debug
+        yield f"Check-in error: {llm_error}", None, prompt_debug
+        return
     cleaned = sanitize_llm_output(llm_response)
     cleaned = filter_by_language(cleaned, response_lang)
     if looks_wrong_language(cleaned, response_lang):
@@ -509,12 +512,26 @@ def handle_checkin(
         if rewritten:
             cleaned = rewritten
     cleaned = truncate_response(cleaned, response_lang)
-    tts_path, tts_error = synthesize_speech(cleaned, response_lang, "checkin")
-    if tts_error:
-        tts_note = (
-            "TTS aktuell nicht verfügbar, bitte Text lesen."
-            if response_lang == "de"
-            else "TTS unavailable right now, please read the text."
-        )
-        cleaned = f"{cleaned}\n[{tts_note}]"
-    return cleaned, tts_path, prompt_debug
+
+    with ThreadPoolExecutor(max_workers=1) as tts_pool:
+        future = tts_pool.submit(synthesize_speech, cleaned, response_lang, "checkin")
+        yield cleaned, None, prompt_debug
+
+        try:
+            tts_path, tts_error = future.result()
+        except Exception as exc:  # pragma: no cover - runtime safeguard
+            tts_path, tts_error = None, f"TTS error: {exc}"
+
+    if not tts_error:
+        yield gr.update(), tts_path, gr.update()
+        return
+
+    tts_note = (
+        "TTS aktuell nicht verfügbar, bitte Text lesen."
+        if response_lang == "de"
+        else "TTS unavailable right now, please read the text."
+    )
+    updated_text = cleaned
+    if tts_note not in updated_text:
+        updated_text = f"{updated_text}\n[{tts_note}]".strip()
+    yield updated_text, tts_path, gr.update()
