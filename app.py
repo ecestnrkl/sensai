@@ -178,12 +178,12 @@ def build_interface():
                 dbq_violations = gr.Slider(1, 5, value=3, step=1, label=tr["dbq"][0])
                 dbq_errors = gr.Slider(1, 5, value=3, step=1, label=tr["dbq"][1])
                 dbq_lapses = gr.Slider(1, 5, value=3, step=1, label=tr["dbq"][2])
-            gr.Markdown("### Brief Sensation Seeking Scale (1-7)")
+            gr.Markdown("### Brief Sensation Seeking Scale (1-5)")
             with gr.Row():
-                bsss_experience = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][0])
-                bsss_thrill = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][1])
-                bsss_disinhibition = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][2])
-                bsss_boredom = gr.Slider(1, 7, value=3, step=1, label=tr["bsss"][3])
+                bsss_experience = gr.Slider(1, 5, value=3, step=1, label=tr["bsss"][0])
+                bsss_thrill = gr.Slider(1, 5, value=3, step=1, label=tr["bsss"][1])
+                bsss_disinhibition = gr.Slider(1, 5, value=3, step=1, label=tr["bsss"][2])
+                bsss_boredom = gr.Slider(1, 5, value=3, step=1, label=tr["bsss"][3])
 
             gr.Markdown("### Emotion Regulation Questionnaire (1-7)")
             with gr.Row():

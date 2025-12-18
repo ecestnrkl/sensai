@@ -2,6 +2,7 @@ import csv
 import datetime
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
 
 import gradio as gr
@@ -164,7 +165,7 @@ def handle_run(
 ):
     state = state or {}
     if not endpoint_url.strip():
-        return (
+        yield (
             "",
             "",
             gr.update(
@@ -180,8 +181,9 @@ def handle_run(
             [],
             {},
         )
+        return
     if not model_name.strip():
-        return (
+        yield (
             "",
             "",
             gr.update(
@@ -197,9 +199,10 @@ def handle_run(
             [],
             {},
         )
+        return
     scenario_id = SCENARIO_LABEL_TO_ID.get(scenario_label, scenario_label)
     if not scenario_id or scenario_id not in SCENARIO_LOOKUP:
-        return (
+        yield (
             "",
             "",
             gr.update(value="Select a scenario first.", elem_classes=["cond-response"]),
@@ -212,6 +215,7 @@ def handle_run(
             [],
             {},
         )
+        return
     existing_history = {}
     for key, history in (state.get("chat_history") or {}).items():
         try:
@@ -253,136 +257,200 @@ def handle_run(
     order = resolve_condition_order(condition_order)
     outputs = []
     condition_data = {}
+    tts_futures = {}
     prompt_debug: Dict[str, str] = {}
 
-    for idx, condition in enumerate(order, start=1):
-        system_prompt = base_system
-        if condition == "personalized":
-            system_prompt = f"{base_system} Persona hints: {persona_summary}"
+    with ThreadPoolExecutor(max_workers=1) as tts_pool:
+        for idx, condition in enumerate(order, start=1):
+            condition_key = f"condition{idx}"
+            system_prompt = base_system
+            if condition == "personalized":
+                system_prompt = f"{base_system} Persona hints: {persona_summary}"
 
-        user_prompt_text = user_prompt(transcript, response_lang)
-        prompt_debug[f"condition{idx}"] = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
+            user_prompt_text = user_prompt(transcript, response_lang)
+            prompt_debug[condition_key] = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt_text}"
 
-        start_time = time.time()
-        llm_response, llm_error = call_llm(
-            endpoint_url,
-            model_name,
-            system_prompt,
-            user_prompt_text,
-            chat_history=existing_history.get(condition, []),
-        )
-        if llm_error:
-            error_text = f"{condition.title()} error: {llm_error}"
-            outputs.append((error_text, None, 0.0, condition))
-            condition_data[f"condition{idx}"] = {
+            start_time = time.time()
+            llm_response, llm_error = call_llm(
+                endpoint_url,
+                model_name,
+                system_prompt,
+                user_prompt_text,
+                chat_history=existing_history.get(condition, []),
+            )
+            llm_latency = time.time() - start_time
+            if llm_error:
+                error_text = f"{condition.title()} error: {llm_error}"
+                outputs.append((error_text, None, llm_latency, condition))
+                condition_data[condition_key] = {
+                    "condition": condition,
+                    "llm_response": error_text,
+                    "audio_path": None,
+                    "latency": llm_latency,
+                    "llm_error": llm_error,
+                }
+                tts_futures[condition_key] = None
+                new_history = list(existing_history.get(condition, []))
+                new_history.append({"role": "user", "content": user_prompt_text})
+                new_history.append({"role": "assistant", "content": error_text})
+                existing_history[condition] = new_history
+                continue
+
+            cleaned_response = sanitize_llm_output(llm_response)
+            cleaned_response = filter_by_language(cleaned_response, response_lang)
+            if looks_wrong_language(cleaned_response, response_lang):
+                rewritten = rewrite_for_language(endpoint_url, model_name, cleaned_response, response_lang)
+                if rewritten:
+                    cleaned_response = rewritten
+            cleaned_response = truncate_response(cleaned_response, response_lang)
+
+            outputs.append((cleaned_response, None, llm_latency, condition))
+            condition_data[condition_key] = {
                 "condition": condition,
-                "llm_response": error_text,
+                "llm_response": cleaned_response,
                 "audio_path": None,
-                "latency": 0.0,
+                "latency": llm_latency,
+                "llm_error": None,
             }
+            tts_futures[condition_key] = tts_pool.submit(
+                synthesize_speech, cleaned_response, response_lang, f"{condition}_{idx}"
+            )
+
             new_history = list(existing_history.get(condition, []))
             new_history.append({"role": "user", "content": user_prompt_text})
-            new_history.append({"role": "assistant", "content": error_text})
+            new_history.append({"role": "assistant", "content": cleaned_response})
             existing_history[condition] = new_history
-            continue
 
-        cleaned_response = sanitize_llm_output(llm_response)
-        cleaned_response = filter_by_language(cleaned_response, response_lang)
-        if looks_wrong_language(cleaned_response, response_lang):
-            rewritten = rewrite_for_language(endpoint_url, model_name, cleaned_response, response_lang)
-            if rewritten:
-                cleaned_response = rewritten
-        cleaned_response = truncate_response(cleaned_response, response_lang)
-        tts_path, tts_error = synthesize_speech(cleaned_response, response_lang, f"{condition}_{idx}")
-        latency = time.time() - start_time
+        while len(outputs) < 2:
+            outputs.append(("", None, 0.0, ""))
 
-        if tts_error:
-            tts_note = (
-                "TTS aktuell nicht verfügbar, bitte Text lesen."
-                if response_lang == "de"
-                else "TTS unavailable right now, please read the text."
-            )
-            cleaned_response = f"{cleaned_response}\n[{tts_note}]"
-            # Keep silent fallback audio if available to avoid UI breakage.
-        outputs.append((cleaned_response, tts_path, latency, condition))
-        condition_data[f"condition{idx}"] = {
-            "condition": condition,
-            "llm_response": cleaned_response,
-            "audio_path": tts_path,
-            "latency": latency,
+        cond1, cond2 = outputs[0], outputs[1]
+        state = {
+            "participant_id": participant_id,
+            "scenario_id": scenario_id,
+            "persona_summary": persona_summary,
+            "transcript": transcript,
+            "response_lang": response_lang,
+            "O": o,
+            "C": c,
+            "E": e,
+            "A": a,
+            "N": n,
+            "dbq_violations": dbq_violations,
+            "dbq_errors": dbq_errors,
+            "dbq_lapses": dbq_lapses,
+            "bsss_experience": bsss_experience,
+            "bsss_thrill": bsss_thrill,
+            "bsss_disinhibition": bsss_disinhibition,
+            "bsss_boredom": bsss_boredom,
+            "erq_reappraisal": erq_reappraisal,
+            "erq_suppression": erq_suppression,
+            "conditions": condition_data,
+            "prompts": prompt_debug,
+            "chat_history": existing_history,
         }
-        new_history = list(existing_history.get(condition, []))
-        new_history.append({"role": "user", "content": user_prompt_text})
-        new_history.append({"role": "assistant", "content": cleaned_response})
-        existing_history[condition] = new_history
 
-    while len(outputs) < 2:
-        outputs.append(("", None, 0.0, ""))
+        cond1_text = f"{cond1[3].replace('_', ' ').title() or 'Condition 1'}: {cond1[0]}"
+        cond2_text = f"{cond2[3].replace('_', ' ').title() or 'Condition 2'}: {cond2[0]}"
 
-    cond1, cond2 = outputs[0], outputs[1]
-    state = {
-        "participant_id": participant_id,
-        "scenario_id": scenario_id,
-        "persona_summary": persona_summary,
-        "transcript": transcript,
-        "response_lang": response_lang,
-        "O": o,
-        "C": c,
-        "E": e,
-        "A": a,
-        "N": n,
-        "dbq_violations": dbq_violations,
-        "dbq_errors": dbq_errors,
-        "dbq_lapses": dbq_lapses,
-        "bsss_experience": bsss_experience,
-        "bsss_thrill": bsss_thrill,
-        "bsss_disinhibition": bsss_disinhibition,
-        "bsss_boredom": bsss_boredom,
-        "erq_reappraisal": erq_reappraisal,
-        "erq_suppression": erq_suppression,
-        "conditions": condition_data,
-        "prompts": prompt_debug,
-        "chat_history": existing_history,
-    }
+        cond1_latency = f"{cond1[2]:.2f}s" if cond1[2] else ""
+        cond2_latency = f"{cond2[2]:.2f}s" if cond2[2] else ""
 
-    cond1_text = f"{cond1[3].replace('_', ' ').title() or 'Condition 1'}: {cond1[0]}"
-    cond2_text = f"{cond2[3].replace('_', ' ').title() or 'Condition 2'}: {cond2[0]}"
+        persona_display = f"{persona_summary}\nCondition order: {', '.join(order)}"
+        transcript_display = transcript
+        if transcript_error:
+            transcript_display = f"{transcript}\n[{transcript_error}]"
 
-    cond1_latency = f"{cond1[2]:.2f}s" if cond1[2] else ""
-    cond2_latency = f"{cond2[2]:.2f}s" if cond2[2] else ""
+        def _response_classes(condition: str) -> List[str]:
+            classes = ["cond-response"]
+            if condition == "personalized":
+                classes.append("cond-personalized")
+            elif condition == "non_personalized":
+                classes.append("cond-nonpersonalized")
+            return classes
 
-    persona_display = f"{persona_summary}\nCondition order: {', '.join(order)}"
-    transcript_display = transcript
-    if transcript_error:
-        transcript_display = f"{transcript}\n[{transcript_error}]"
+        cond1_display_text = f"{cond1_text}\nLLM latency: {cond1_latency}"
+        cond2_display_text = f"{cond2_text}\nLLM latency: {cond2_latency}"
 
-    def _response_classes(condition: str) -> List[str]:
-        classes = ["cond-response"]
-        if condition == "personalized":
-            classes.append("cond-personalized")
-        elif condition == "non_personalized":
-            classes.append("cond-nonpersonalized")
-        return classes
+        yield (
+            transcript_display,
+            persona_display,
+            gr.update(
+                value=cond1_display_text,
+                elem_classes=_response_classes(cond1[3]),
+            ),
+            None,
+            gr.update(
+                value=cond2_display_text,
+                elem_classes=_response_classes(cond2[3]),
+            ),
+            None,
+            prompt_debug.get("condition1", ""),
+            prompt_debug.get("condition2", ""),
+            _history_to_messages(existing_history.get(cond1[3], [])),
+            _history_to_messages(existing_history.get(cond2[3], [])),
+            state,
+        )
 
-    return (
-        transcript_display,
-        persona_display,
-        gr.update(
-            value=f"{cond1_text}\nLatency: {cond1_latency}",
-            elem_classes=_response_classes(cond1[3]),
-        ),
-        cond1[1],
-        gr.update(
-            value=f"{cond2_text}\nLatency: {cond2_latency}",
-            elem_classes=_response_classes(cond2[3]),
-        ),
-        cond2[1],
-        prompt_debug.get("condition1", ""),
-        prompt_debug.get("condition2", ""),
-        _history_to_messages(existing_history.get(cond1[3], [])),
-        _history_to_messages(existing_history.get(cond2[3], [])),
-        state,
-    )
+        tts_note = (
+            "TTS aktuell nicht verfügbar, bitte Text lesen."
+            if response_lang == "de"
+            else "TTS unavailable right now, please read the text."
+        )
+
+        for condition_key, condition_display in (
+            ("condition1", cond1[3]),
+            ("condition2", cond2[3]),
+        ):
+            future = tts_futures.get(condition_key)
+            info = (condition_data.get(condition_key) or {}).copy()
+            if not future or info.get("llm_error"):
+                continue
+
+            try:
+                tts_path, tts_error = future.result()
+            except Exception as exc:  # pragma: no cover - runtime safeguard
+                tts_path, tts_error = None, f"TTS error: {exc}"
+            info["audio_path"] = tts_path
+            info["tts_error"] = tts_error
+            condition_data[condition_key] = info
+            state["conditions"] = condition_data
+
+            cond1_audio_out = gr.update()
+            cond2_audio_out = gr.update()
+            cond1_text_out = gr.update()
+            cond2_text_out = gr.update()
+
+            if condition_key == "condition1":
+                cond1_audio_out = tts_path
+                if tts_error and tts_note not in cond1_display_text:
+                    cond1_display_text = f"{cond1_display_text}\n[{tts_note}]".strip()
+                    cond1_text_out = gr.update(
+                        value=cond1_display_text,
+                        elem_classes=_response_classes(condition_display),
+                    )
+            else:
+                cond2_audio_out = tts_path
+                if tts_error and tts_note not in cond2_display_text:
+                    cond2_display_text = f"{cond2_display_text}\n[{tts_note}]".strip()
+                    cond2_text_out = gr.update(
+                        value=cond2_display_text,
+                        elem_classes=_response_classes(condition_display),
+                    )
+
+            yield (
+                gr.update(),
+                gr.update(),
+                cond1_text_out,
+                cond1_audio_out,
+                cond2_text_out,
+                cond2_audio_out,
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                gr.update(),
+                state,
+            )
 
 
 def handle_checkin(
