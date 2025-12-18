@@ -1,72 +1,105 @@
 import os
+import threading
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Generator, Optional, Tuple
 import wave
 import contextlib
 
-from faster_whisper import WhisperModel
-from TTS.api import TTS
+from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+from TTS.api import TTS  # type: ignore[import-untyped]
 try:
     from torch.serialization import add_safe_globals
-    from TTS.tts.configs.xtts_config import XttsConfig
+    from TTS.tts.configs.xtts_config import XttsConfig  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover - defensive import
-    add_safe_globals = None  # type: ignore
-    XttsConfig = None  # type: ignore
+    add_safe_globals = None  # type: ignore[assignment]
+    XttsConfig = None
 
 from settings import TMP_DIR
 
-# Lazy globals
-whisper_model: Optional[WhisperModel] = None
-tts_model: Optional[TTS] = None
-tts_default_speaker: Optional[str] = None
+
+class AudioModels:
+    """Thread-safe singleton for managing Whisper and TTS models."""
+    
+    _instance: Optional['AudioModels'] = None
+    _lock = threading.Lock()
+    
+    def __init__(self) -> None:
+        """Private constructor. Use get_instance() instead."""
+        self._whisper_model: Optional[WhisperModel] = None
+        self._tts_model: Optional[TTS] = None
+        self._tts_default_speaker: Optional[str] = None
+        self._whisper_lock = threading.Lock()
+        self._tts_lock = threading.Lock()
+    
+    @classmethod
+    def get_instance(cls) -> 'AudioModels':
+        """Get the singleton instance (thread-safe)."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
+    
+    def get_whisper(self) -> WhisperModel:
+        """Get or initialize Whisper model (thread-safe)."""
+        if self._whisper_model is None:
+            with self._whisper_lock:
+                if self._whisper_model is None:
+                    self._whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+        return self._whisper_model
+    
+    def get_tts(self) -> Tuple[TTS, Optional[str]]:
+        """Get or initialize TTS model and default speaker (thread-safe)."""
+        if self._tts_model is None:
+            with self._tts_lock:
+                if self._tts_model is None:
+                    try:
+                        if add_safe_globals is not None and XttsConfig:
+                            try:
+                                add_safe_globals([XttsConfig])
+                            except Exception:
+                                pass
+                        self._tts_model = TTS(
+                            model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+                            progress_bar=False,
+                            gpu=False,
+                        )
+                    except ImportError as exc:
+                        msg = str(exc)
+                        if "BeamSearchScorer" in msg or "transformers" in msg:
+                            raise RuntimeError(
+                                'TTS-Init fehlgeschlagen: Bitte `pip install "transformers<4.46"` im .venv ausfuehren.'
+                            ) from exc
+                        if "Weights only load failed" in msg or "weights_only" in msg:
+                            raise RuntimeError(
+                                "TTS-Init fehlgeschlagen (weights_only). Versuche `pip install torch==2.5.1` im .venv "
+                                "oder stelle sicher, dass die XTTS-Checkpoint-Datei vertrauenswürdig ist."
+                            ) from exc
+                        raise
+                    try:
+                        sm = self._tts_model.synthesizer.tts_model.speaker_manager
+                        if sm and getattr(sm, "speakers", None):
+                            names = list(sm.speakers.keys())
+                            if names:
+                                self._tts_default_speaker = names[0]
+                    except Exception:
+                        self._tts_default_speaker = None
+                    env_speaker = os.getenv("TTS_SPEAKER_NAME")
+                    if env_speaker:
+                        self._tts_default_speaker = env_speaker
+        return self._tts_model, self._tts_default_speaker
 
 
+# Convenience functions for backward compatibility
 def get_whisper() -> WhisperModel:
-    global whisper_model
-    if whisper_model is None:
-        whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
-    return whisper_model
+    """Get Whisper model instance."""
+    return AudioModels.get_instance().get_whisper()
 
 
 def get_tts() -> Tuple[TTS, Optional[str]]:
-    global tts_model, tts_default_speaker
-    if tts_model is None:
-        try:
-            if add_safe_globals and XttsConfig:
-                try:
-                    add_safe_globals([XttsConfig])
-                except Exception:
-                    pass
-            tts_model = TTS(
-                model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-                progress_bar=False,
-                gpu=False,
-            )
-        except ImportError as exc:
-            msg = str(exc)
-            if "BeamSearchScorer" in msg or "transformers" in msg:
-                raise RuntimeError(
-                    'TTS-Init fehlgeschlagen: Bitte `pip install "transformers<4.46"` im .venv ausfuehren.'
-                ) from exc
-            if "Weights only load failed" in msg or "weights_only" in msg:
-                raise RuntimeError(
-                    "TTS-Init fehlgeschlagen (weights_only). Versuche `pip install torch==2.5.1` im .venv "
-                    "oder stelle sicher, dass die XTTS-Checkpoint-Datei vertrauenswürdig ist."
-                ) from exc
-            raise
-        try:
-            sm = tts_model.synthesizer.tts_model.speaker_manager  # type: ignore[attr-defined]
-            if sm and getattr(sm, "speakers", None):
-                names = list(sm.speakers.keys())
-                if names:
-                    tts_default_speaker = names[0]
-        except Exception:
-            tts_default_speaker = None
-        env_speaker = os.getenv("TTS_SPEAKER_NAME")
-        if env_speaker:
-            tts_default_speaker = env_speaker
-    return tts_model, tts_default_speaker
+    """Get TTS model instance and default speaker."""
+    return AudioModels.get_instance().get_tts()
 
 
 def transcribe_audio(audio_path: Optional[str], language_hint: Optional[str] = None) -> Tuple[str, Optional[str], Optional[str]]:
@@ -93,7 +126,7 @@ def synthesize_speech(text: str, language: str, tag: str) -> Tuple[Optional[str]
         tts_kwargs["speaker"] = speaker
     else:
         try:
-            sm = tts.synthesizer.tts_model.speaker_manager  # type: ignore[attr-defined]
+            sm = tts.synthesizer.tts_model.speaker_manager
             if sm and getattr(sm, "speakers", None):
                 names = list(sm.speakers.keys())
                 if names:
@@ -123,16 +156,21 @@ def _write_silence_wav(tag: str, duration_sec: float = 1.0, sample_rate: int = 1
     return str(out_path)
 
 
-def warm_up_models() -> str:
-    msgs = []
+def warm_up_models() -> Generator[str, None, None]:
+    """Warm up models with progress updates for Gradio UI."""
+    yield "Starting warmup..."
+    
     try:
+        yield "Loading Whisper model (speech-to-text)..."
         get_whisper()
-        msgs.append("Whisper ok")
+        yield "✓ Whisper loaded successfully"
     except Exception as exc:  # pragma: no cover - runtime safeguard
-        msgs.append(f"Whisper Fehler: {exc}")
+        yield f"✗ Whisper error: {exc}"
+        return
+    
     try:
+        yield "Loading XTTS model (text-to-speech). First download may take 1-2 minutes..."
         get_tts()
-        msgs.append("XTTS ok (erstes Laden kann >1min dauern)")
+        yield "✓ XTTS loaded successfully. Models ready!"
     except Exception as exc:  # pragma: no cover - runtime safeguard
-        msgs.append(f"TTS Fehler: {exc}")
-    return " | ".join(msgs)
+        yield f"✗ TTS error: {exc}"

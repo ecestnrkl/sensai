@@ -1,7 +1,7 @@
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from settings import DEFAULT_TEMPERATURE, DEFAULT_TOP_P, MAX_GENERATION_TOKENS
 
@@ -36,7 +36,7 @@ def call_llm(
     system_prompt: str,
     user_prompt: str,
     max_tokens: int = MAX_GENERATION_TOKENS,
-    chat_history=None,
+    chat_history: Optional[List[Dict[str, str]]] = None,
 ) -> Tuple[Optional[str], Optional[str]]:
     style = detect_api_style(endpoint)
     url = normalized_url(endpoint, style)
@@ -49,7 +49,7 @@ def call_llm(
                 continue
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_prompt})
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "messages": messages,
     }
