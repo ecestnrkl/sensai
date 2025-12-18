@@ -1,161 +1,288 @@
 # Audio Personality Prompting Prototype
-Gradio app to compare LLM replies with and without persona hints. Audio input (mic), Whisper transcription, Coqui XTTS v2 TTS. UI default is English; German via toggle. Below: full English guide + German short version.
 
-## English Guide
+**University research project** investigating whether large language models generate more appropriate responses when provided with personality trait information.
+
+## Research Context
+
+This application enables controlled experiments comparing LLM-generated responses in driving scenarios under two conditions:
+
+1. **Personalized (Experimental):** LLM receives personality profile (Big Five, driving behavior, sensation seeking, emotion regulation)
+2. **Baseline (Control):** LLM operates without personality context
+
+**Research Question:** Do personality-informed prompts lead to more contextually appropriate, safer, and user-aligned responses in high-stakes scenarios (e.g., time pressure while driving)?
+
+**Key Metrics:**
+- Response appropriateness for different personality types
+- Safety emphasis based on risk profiles (DBQ violations/lapses)
+- Engagement strategies for boredom-susceptible users
+- Emotional tone matching (neuroticism, agreeableness)
+
+---
+
+## Features
+
+- 🎤 **Voice input** with Whisper transcription
+- 🤖 **Dual-mode LLM generation** (personalized/baseline)
+- 🔊 **Text-to-speech** with Coqui XTTS v2
+- 🌍 **Bilingual support** (English/German)
+- 📊 **Personality-based prompt adaptation** (Big Five, DBQ, BSSS, ERQ)
+- 💾 **CSV export** for research data analysis
+- 🎯 **Scenario-based testing** (job interviews, exams under time pressure)
+
+---
+
+## Personality Framework
+
+The application uses validated psychological scales to construct driver personas:
+
+### Big Five Personality Traits (1-5)
+- **Openness (O):** Influences receptiveness to novel suggestions
+- **Conscientiousness (C):** Affects planning and rule-following
+- **Extraversion (E):** Determines social interaction preferences
+- **Agreeableness (A):** Shapes conflict resolution and cooperation
+- **Neuroticism (N):** Impacts anxiety and stress responses
+
+### Driver Behavior Questionnaire (DBQ) (1-5)
+- **Violations:** Deliberate rule-breaking tendencies
+- **Errors:** Skill-based mistakes frequency
+- **Lapses:** Attention/memory failures
+
+### Brief Sensation Seeking Scale (BSSS) (1-5)
+- **Experience Seeking:** Desire for novel experiences
+- **Thrill & Adventure:** Risk-taking inclination
+- **Disinhibition:** Impulsivity level
+- **Boredom Susceptibility:** Monotony tolerance
+
+### Emotion Regulation Questionnaire (ERQ) (1-7)
+- **Cognitive Reappraisal:** Ability to reframe situations
+- **Expressive Suppression:** Emotional control strategy
+
+**Prompt Adaptation Example:**
+- High Neuroticism + High DBQ Lapses → Extra reassurance, simple instructions, stress acknowledgment
+- High Boredom Susceptibility → Engaging suggestions (music/podcasts) while maintaining safety focus
+- High DBQ Violations → Emphasis on legal consequences and safety compliance
+
+---
+
+## Quick Start
+
 ### Requirements
-- Python 3.11, Git, microphone.
-- LLM server: easiest Ollama (chat endpoint) or any OpenAI-compatible chat server (e.g., llama.cpp server).
-- Network access for model downloads (Whisper, XTTS, Ollama pulls).
+- **Python 3.11**
+- **LLM Server:** Ollama (recommended) or any OpenAI-compatible API
+- **Microphone** for audio input
+- **Network access** for model downloads (~2GB first run)
 
-### Setup (macOS/Linux, Bash)
+### Installation
+
+**macOS/Linux:**
 ```bash
 git clone <repo> prototype_audio_test
 cd prototype_audio_test
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
-pip install gradio faster-whisper soundfile numpy requests TTS
+pip install -r requirements.txt
 ```
 
-### Setup (Windows, PowerShell)
+**Windows (PowerShell):**
 ```powershell
 git clone <repo> prototype_audio_test
 cd prototype_audio_test
 py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
-pip install gradio faster-whisper soundfile numpy requests TTS
+pip install -r requirements.txt
 ```
-Note: Ollama officially supports macOS/Linux; on Windows use WSL or another OpenAI-compatible endpoint.
 
-### Start LLM server
-**Option A: Ollama (recommended)**
+> **Note:** Ollama officially supports macOS/Linux. Windows users should use WSL or another OpenAI-compatible endpoint.
+
+### LLM Server Setup
+
+**Option A: Ollama (Recommended)**
 ```bash
-ollama serve           # keep terminal open
+# Start Ollama server (keep terminal open)
+ollama serve
+
+# Pull model (in separate terminal)
 ollama pull llama2:7b-chat
 ```
-UI defaults match: Endpoint `http://localhost:11434`, Model `llama2:7b-chat`.
+Default settings: `http://localhost:11434` endpoint, `llama2:7b-chat` model
 
-**Option B: llama.cpp server (CPU example)**
+**Option B: llama.cpp Server**
 ```bash
 python -m venv ~/.llama-venv && source ~/.llama-venv/bin/activate
-python -m pip install --upgrade pip
 pip install llama-cpp-python
-python -m llama_cpp.convert --outtype q4_k_m --outfile llama-2-7b-chat-q4_k_m.gguf /path/to/Llama-2-7b-chat
 python -m llama_cpp.server \
-  --model /path/to/llama-2-7b-chat-q4_k_m.gguf \
-  --host 0.0.0.0 --port 8000 --n_ctx 4096 --chat_format llama-2
+  --model /path/to/model.gguf \
+  --host 0.0.0.0 --port 8000 \
+  --n_ctx 4096 --chat_format llama-2
 ```
-Set UI: Endpoint `http://localhost:8000`, Model `llama-2-7b-chat`.
+Configure UI: `http://localhost:8000` endpoint, model name to match
 
-### Run the app
-macOS/Linux:
+### Running the Application
+
 ```bash
-cd prototype_audio_test
-source .venv/bin/activate
+source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 python app.py
 ```
-Windows (PowerShell):
-```powershell
-cd prototype_audio_test
-.venv\Scripts\Activate.ps1
-python app.py
+
+Open the Gradio URL (printed in terminal) in your browser.
+
+---
+
+## Usage Workflow
+
+### 1. Initial Setup
+- Click **"Warmup starten"** to preload models (1-2 min first time)
+- Click **"LLM Verbindung testen"** to verify connection
+
+### 2. Configure Experiment
+- **Participant ID:** Unique identifier for this session
+- **Scenario:** Select driving situation from dropdown
+- **Language:** Toggle between English/German (affects LLM and TTS)
+- **Personality Scales:** Adjust Big Five, DBQ, BSSS, ERQ sliders
+- **Response Mode:** 
+  - Both: Compare personalized vs. baseline
+  - Personalized only: Persona-adapted responses
+  - Non-personalized only: Baseline responses
+
+### 3. Interact
+- **Audio input:** Click mic button, speak, click again to stop
+- **Text input:** Type directly if mic unavailable
+- Click **"Generate response(s)"** → receive LLM reply with TTS audio
+
+### 4. Save Data
+- Click **"Save Condition 1/2"** to append results to `results.csv`
+- Use **"Trigger Check-in"** for periodic engagement questions
+
+---
+
+## Project Structure
+
 ```
-Open the printed Gradio URL in your browser.
+prototype_audio_test/
+├── app.py                  # Gradio UI and main entry point
+├── handlers.py             # Core orchestration (LLM, TTS, state)
+├── prompts.py              # Prompt engineering and persona logic
+├── llm_client.py           # OpenAI/Ollama API client
+├── audio_io.py             # Whisper (STT) and XTTS (TTS)
+├── data.py                 # JSON config loaders
+├── settings.py             # Configuration constants
+├── requirements.txt        # Pinned dependencies
+├── scenarios.json          # Driving scenarios (en/de)
+├── persona_rules.json      # Personality → instruction mappings
+├── results.csv             # Saved experiment data
+└── tmp_audio/              # Temporary TTS/input files
+```
 
-### Warmup & connection test
-- **Warmup starten**: preload Whisper + XTTS (first download 1–2 minutes).
-- **LLM Verbindung testen**: quick pong check for endpoint/model.
+---
 
-### UI workflow
-1. Open **Experiment** tab.  
-2. Set Participant ID, choose scenario (text shown).  
-3. Pick language (en/de) – replies + TTS follow this.  
-4. Set Big Five/DBQ/BSSS/ERQ and pick the LLM response mode (both vs single).  
-5. Adjust endpoint/model if needed (Ollama defaults are prefilled).  
-6. Input via mic (push-to-talk) or text box.  
-7. Click **Generate response(s)** → one or two replies (depending on mode) with text + TTS.  
-8. Optional **Save Condition 1/2**: append row to `results.csv` (no ratings).  
-9. Check-in: **Trigger Check-in** gives a short question + optional boredom tip.
+## Configuration
 
-### Files & folders
-- `results.csv` – saved runs (header auto-created).
-- `tmp_audio/` – temporary audio (TTS/inputs). Clear with `rm tmp_audio/*` (macOS/Linux) or `del tmp_audio\*` (PowerShell).
-- `persona_rules.json`, `scenarios.json` – content/config.
+### Environment Variables
+```bash
+export TTS_SPEAKER_NAME="female_speaker"  # Override default TTS voice
+export TTS_SPEAKER_WAV="/path/to/voice.wav"  # Custom voice clone
+```
 
-### Troubleshooting
-- Ollama 404: model name must match `ollama list`.
-- TTS `BeamSearchScorer`: in `.venv` run `pip install "transformers<4.46"`.
-- TTS `weights_only`: `pip install torch==2.5.1 torchaudio==2.5.1`.
-- TTS “no speaker provided”: default speaker auto-set; optionally set `TTS_SPEAKER_NAME` or `TTS_SPEAKER_WAV`.
-- Slow first reply: warmup; XTTS download once.
-- No reply: check endpoint/port; for llama.cpp ensure `--chat_format llama-2`.
+### Editing Defaults (`settings.py`)
+```python
+DEFAULT_ENDPOINT = "http://localhost:11434"
+DEFAULT_MODEL = "llama2:7b-chat"
+MAX_GENERATION_TOKENS = 90
+DEFAULT_TEMPERATURE = 0.6
+```
 
-### Env vars (quick reference)
-- `TTS_SPEAKER_NAME` – name from XTTS speaker list.
-- `TTS_SPEAKER_WAV` – path to your reference voice.
-- `DEFAULT_ENDPOINT`, `DEFAULT_MODEL` – adjust UI defaults in `settings.py`.
+### Adding Scenarios (`scenarios.json`)
+```json
+{
+  "id": "unique_scenario_id",
+  "title": "Display Name",
+  "text": "English 2nd-person scenario text",
+  "text_de": "German scenario text"
+}
+```
 
-### Clean up audio cache
-- macOS/Linux: `rm tmp_audio/*`
-- Windows PowerShell: `del tmp_audio\*`
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| **Ollama 404 error** | Model name must exactly match `ollama list` output |
+| **TTS BeamSearchScorer error** | `pip install "transformers<4.46"` (already in requirements.txt) |
+| **TTS weights_only error** | `pip install torch==2.5.1 torchaudio==2.5.1` (already pinned) |
+| **Slow first response** | Expected - XTTS downloads ~1GB on first run. Use warmup. |
+| **No LLM reply** | Check endpoint/port. For llama.cpp use `--chat_format llama-2` |
+| **Gradio errors** | Ensure Gradio 6.0+ installed: `pip install --upgrade gradio` |
+
+### Clear Audio Cache
+```bash
+# macOS/Linux
+rm tmp_audio/*
+
+# Windows PowerShell
+del tmp_audio\*
+```
+
+---
+
+## Development
+
+### Type Checking
+```bash
+pip install mypy types-requests
+mypy --strict audio_io.py handlers.py llm_client.py data.py
+```
+
+### Code Quality
+See [.github/copilot-instructions.md](.github/copilot-instructions.md) for:
+- Architecture overview
+- Coding conventions
+- Common development tasks
+- Testing strategies
+
+---
+
+## Data Export
+
+Results are saved to `results.csv` with columns:
+- Timestamps, participant ID, scenario ID
+- Personality scores (Big Five, DBQ, BSSS, ERQ)
+- Condition (personalized/non-personalized)
+- Driver transcript, LLM response, latency
+
+**Privacy Note:** Audio files in `tmp_audio/` are temporary. Transcripts are saved in CSV.
 
 ---
 
 ## Deutsche Kurzfassung
-- Gradio-App vergleicht LLM-Antworten mit/ohne Persona-Hinweise. Audio rein, Whisper-Transkript, XTTS v2 als TTS. UI-Default Englisch, Umschalter auf Deutsch.
 
-### Voraussetzungen
-- Python 3.11, Git, Mikrofon; LLM-Server (Ollama empfohlen), Netzwerk für Downloads.
+**Gradio-App** zum Vergleich von LLM-Antworten mit/ohne Persona-Hinweise.
 
-### Setup (macOS/Linux)
+### Setup
 ```bash
-git clone <repo> prototype_audio_test
-cd prototype_audio_test
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
-pip install gradio faster-whisper soundfile numpy requests TTS
+pip install -r requirements.txt
 ```
-
-### Setup (Windows PowerShell)
-```powershell
-git clone <repo> prototype_audio_test
-cd prototype_audio_test
-py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install --upgrade "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0
-pip install gradio faster-whisper soundfile numpy requests TTS
-```
-Ollama offiziell macOS/Linux; unter Windows WSL oder anderen OpenAI-kompatiblen Endpoint nutzen.
 
 ### LLM-Server
-- Ollama: `ollama serve`, `ollama pull llama2:7b-chat` (Endpoint `http://localhost:11434`, Model `llama2:7b-chat`).
-- llama.cpp: wie oben mit `--chat_format llama-2`, Endpoint `http://localhost:8000`.
-
-### App starten
 ```bash
-source .venv/bin/activate   # bzw. .venv\Scripts\Activate.ps1
-python app.py
+ollama serve
+ollama pull llama2:7b-chat
 ```
-Gradio-URL im Browser öffnen.
+
+### Starten
+```bash
+python app.py  # URL im Browser öffnen
+```
 
 ### Nutzung
-- Warmup laden, LLM-Verbindung testen.
-- Im Tab **Experiment**: ID setzen, Szenario wählen, Sprache (de/en), Slider ausfüllen, Antwortmodus wählen, Endpoint prüfen, Audio oder Text eingeben, **Antwort(en) generieren** drücken.
-- Je nach Modus eine oder zwei Antworten (personalisiert / nicht personalisiert) als Text + TTS; optional speichern in `results.csv`.
-- Check-in: **Trigger Check-in** liefert Frage + optionalen Langeweile-Tipp.
+1. Warmup + LLM-Test durchführen
+2. ID, Szenario, Sprache (de/en) wählen
+3. Persönlichkeits-Slider einstellen
+4. Audio/Text eingeben → **Antwort generieren**
+5. Optional: Ergebnisse speichern
 
-### Dateien
-- `results.csv` (Runs), `tmp_audio/` (temporäre Audios; leeren mit `rm tmp_audio/*` oder `del tmp_audio\*`), `persona_rules.json`, `scenarios.json`.
+**Dateien:** `results.csv` (Daten), `tmp_audio/` (temporär), `scenarios.json` + `persona_rules.json` (Konfiguration)
 
-### Troubleshooting
-- 404 bei Ollama: Modellname exakt wie in `ollama list`.
-- TTS-Fehler BeamSearchScorer: `pip install "transformers<4.46"`.
-- TTS `weights_only`: `pip install "transformers<4.46" torch==2.5.1 torchaudio==2.5.1 TTS==0.22.0`.
-- Keine Antwort: Endpoint/Port prüfen; bei llama.cpp `--chat_format llama-2`.
-- Langsam: Warmup abwarten; XTTS-Download kann 1–2 min dauern.
+**Troubleshooting:** Siehe englische Tabelle oben.
