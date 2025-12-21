@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<scenarios>
+    <scenario name="ScenarioName_SensAiStudy" type="SensAiStudyScenario" town="Town03">
+        <weather cloudiness="10" wetness="30" sun_altitude_angle="10" sun_azimuth_angle="300" wind_intensity="10.0" fog_density="2.0" precipitation="60.0" precipitation_deposits="40.0"/>   
+        <ego_vehicle x="173" y="130" z="1" yaw="225" model="vehicle.lincoln.mkz_2017" />
+    </scenario>
+</scenarios>
