@@ -61,6 +61,8 @@ If an error occurs, the following must be set manually:
 
 ### Terminal 3
 
+> Execute only once Terminal 2 (scenario) returns success!
+
 ```
 cd
 C:\path-to\scenario_runner-0.9.16
@@ -69,4 +71,11 @@ python3 .\manual_control.py
 
 optional --res 3840x1080
 
+```
+
+> May need to be commented out, as shown. (approx. 2 times in code):
+
+```
+elif event.key == K_c:
+    world.next_weather()
 ```
