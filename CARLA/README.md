@@ -61,7 +61,7 @@ If an error occurs, the following must be set manually:
 
 ### Terminal 3
 
-> Execute only once Terminal 2 (scenario) returns success!
+> Execute only once Terminal 2 (scenario) is done!
 
 ```
 cd
@@ -73,7 +73,7 @@ optional --res 3840x1080
 
 ```
 
-> May need to be commented out, as shown. (approx. 2 times in code):
+> May need to be commented out, as shown (as problems may arise when using the steering wheel). (approx. 2 times in code):
 
 ```
 elif event.key == K_c:
