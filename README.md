@@ -31,6 +31,12 @@ This application enables controlled experiments comparing LLM-generated response
 
 ---
 
+## Demo Video
+
+Walkthrough of the Gradio interface and full interaction flow: `video/SensAI_Demo.mp4`
+
+---
+
 ## Personality Framework
 
 The application uses validated psychological scales to construct driver personas:
