@@ -231,6 +231,12 @@ del tmp_audio\*
 
 ---
 
+## Architecture
+
+![SensAI architecture diagram](Study/sensaiflow1.png)
+
+---
+
 ## Development
 
 ### Type Checking
