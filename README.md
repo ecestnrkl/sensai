@@ -233,7 +233,7 @@ del tmp_audio\*
 
 ## Architecture
 
-![SensAI architecture diagram](Study/sensaiflow.svg)
+<img src="Study/sensaiflow.svg" alt="SensAI architecture diagram" width="700">
 
 ---
 
