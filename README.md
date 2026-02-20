@@ -70,6 +70,82 @@ The application uses validated psychological scales to construct driver personas
 
 ---
 
+## Prompt Pipeline (DPP Flow)
+
+Full pipeline from driver personality inputs to LLM response.
+Red nodes mark the four points where the DPP currently has little effect on the output.
+For the detailed analysis and debug suggestions see [PROMPTFLOW.md](PROMPTFLOW.md).
+
+```mermaid
+flowchart TD
+    A1([Participant ID\nScenario · Sprache · Run-Mode])
+    A2([Big Five\nO · C · E · A · N\n1–5])
+    A3([Mini-DBQ\nViolations · Errors · Lapses\n1–5])
+    A4([BSSS\nExperience · Thrill · Disinhibition · Boredom\n1–5])
+    A5([ERQ\nReappraisal · Suppression\n1–7])
+    A6([Audio / Manualtext])
+
+    B1["_get_transcript()\nWhisper oder Manualtext"]
+
+    C1{{"⚠️ P1 · build_persona_summary()\nRegel nur bei Score ≥ 4 oder ≤ 2\n→ mittlere Werte = nur default-Regel"}}
+    C2["Persona-Summary-String"]
+
+    D1["base_system_prompt()\nImmer gleich:\nRolle · 2 Sätze · Sprache · Szenario"]
+
+    D2{{"⚠️ P2 · condition == personalized?\nHints stehen AM ENDE des Prompts\nnach harten Format-Constraints"}}
+
+    D3["system = base + 'Persona hints: ...'"]
+    D4["system = base\n(keine Hints)"]
+    D5["user_prompt()\n'Transcript: {...}. Exactly 2 sentences.'"]
+
+    E1{{"⚠️ P3 · call_llm()\ntemp=0.6 deterministisch\nmax_tokens=90 sehr eng"}}
+    E2["LLM → Rohe Antwort"]
+
+    F1{{"⚠️ P4a · sanitize_llm_output()\nEntfernt Meta-Opener → filtert Persona-Stil"}}
+    F2["filter_by_language()"]
+    F3{"wrong language?"}
+    F4["rewrite_for_language()"]
+    F5{{"⚠️ P4b · truncate_response()\nMax 2 Sätze / 30 Wörter\n→ Stil-Unterschiede weggeschnitten"}}
+
+    G1["Finale Antwort"]
+    G2["TTS → .wav"]
+    G3["results.csv"]
+
+    A1 --> B1
+    A6 --> B1
+    A2 & A3 & A4 & A5 --> C1
+    B1 --> D5
+    C1 --> C2
+    C2 --> D2
+    D1 --> D2
+    D2 -- "ja" --> D3
+    D2 -- "nein" --> D4
+    D3 & D4 --> E1
+    D5 --> E1
+    E1 --> E2
+    E2 --> F1
+    F1 --> F2
+    F2 --> F3
+    F3 -- "ja" --> F4
+    F3 -- "nein" --> F5
+    F4 --> F5
+    F5 --> G1
+    G1 --> G2
+    G1 --> G3
+
+    classDef problem fill:#ff6b6b,color:#fff,stroke:#c0392b,stroke-width:2px
+    classDef input fill:#74b9ff,color:#000,stroke:#0984e3,stroke-width:1px
+    classDef process fill:#dfe6e9,color:#000,stroke:#636e72,stroke-width:1px
+    classDef output fill:#55efc4,color:#000,stroke:#00b894,stroke-width:1px
+
+    class C1,D2,E1,F1,F5 problem
+    class A1,A2,A3,A4,A5,A6 input
+    class B1,C2,D1,D3,D4,D5,F2,F4 process
+    class G1,G2,G3 output
+```
+
+---
+
 ## Quick Start
 
 ### Requirements
