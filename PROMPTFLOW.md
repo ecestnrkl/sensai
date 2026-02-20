@@ -1,57 +1,57 @@
 # Promptflow: SensAI Experiment Pipeline
 
-Dieses Dokument visualisiert den vollständigen Datenfluss vom Nutzer-Input bis zur LLM-Antwort,
-inklusive der **DPP-Verzweigung** (Driver Personality Profile = Big Five + DBQ + BSSS + ERQ)
-und einer Analyse, warum der DPP-Einfluss auf die LLM-Antwort derzeit gering oder nicht messbar ist.
+This document visualises the full data flow from user input to LLM response,
+including the **DPP branch** (Driver Personality Profile = Big Five + DBQ + BSSS + ERQ)
+and an analysis of why the DPP currently has little or no measurable effect on the LLM output.
 
 ---
 
-## 1. Vollständiger Promptflow
+## 1. Full Promptflow
 
 ```mermaid
 flowchart TD
-    %% ── Eingaben ───────────────────────────────────────────────
-    A1([Participant ID\nScenario-Auswahl\nSprache / Run-Mode])
-    A2([Big Five\nO · C · E · A · N\nSkala 1–5])
-    A3([Mini-DBQ\nViolations · Errors · Lapses\nSkala 1–5])
-    A4([BSSS\nExperience · Thrill · Disinhibition · Boredom\nSkala 1–5])
-    A5([ERQ\nReappraisal · Suppression\nSkala 1–7])
-    A6([Audio-Aufnahme\noder\nManualtext])
+    %% ── Inputs ──────────────────────────────────────────────────
+    A1([Participant ID\nScenario · Language · Run-Mode])
+    A2([Big Five\nO · C · E · A · N\nScale 1–5])
+    A3([Mini-DBQ\nViolations · Errors · Lapses\nScale 1–5])
+    A4([BSSS\nExperience · Thrill · Disinhibition · Boredom\nScale 1–5])
+    A5([ERQ\nReappraisal · Suppression\nScale 1–7])
+    A6([Audio Recording\nor\nManual Text])
 
-    %% ── Transkription ──────────────────────────────────────────
-    B1["_get_transcript()\nWhisper 'base'-Modell\noder manueller Text"]
+    %% ── Transcription ───────────────────────────────────────────
+    B1["_get_transcript()\nWhisper 'base' model\nor manual text"]
 
-    %% ──  DPP → Persona Summary ─────────────────────────────────
-    C1{{"⚠️ PROBLEM 1\nbuild_persona_summary()\nprompts.py\n\nSchwellenwert-Logik:\nRegel wird NUR hinzugefügt\nwenn Score ≥ 4 (oder ≤ 2)\n→ bei mittleren Werten\nbleibt nur 'default'-Regel!"}}
-    C2["Persona-Summary-String\nz.B. 'Speak calmly. Driver seems anxious;\nmore reassurance... Big Five: O=3, C=4...'"]
+    %% ── DPP → Persona Summary ──────────────────────────────────
+    C1{{"⚠️ PROBLEM 1\nbuild_persona_summary()\nprompts.py\n\nThreshold logic:\nRule added ONLY if\nscore ≥ 4 (or ≤ 2)\n→ mid-range scores\n= default rule only!"}}
+    C2["Persona Summary String\ne.g. 'Speak calmly. Driver seems anxious;\nmore reassurance... Big Five: O=3, C=4...'"]
 
-    %% ── System Prompt ──────────────────────────────────────────
-    D1["base_system_prompt()\nprompts.py\n\nFester Inhalt (immer gleich):\n• Rolle: Sprachassistent im Fahrzeug\n• Format: genau 2 kurze Sätze\n• Sprachreinheit\n• Kein Filler / keine Listen\n• Szenario-Kontext"]
+    %% ── System Prompt ───────────────────────────────────────────
+    D1["base_system_prompt()\nprompts.py\n\nFixed content (always identical):\n• Role: voice assistant in vehicle\n• Format: exactly 2 short sentences\n• Language purity\n• No fillers / no lists\n• Scenario context"]
 
-    %% ── Condition-Verzweigung ───────────────────────────────────
+    %% ── Condition Branch ────────────────────────────────────────
     D2{{"⚠️ PROBLEM 2\ncondition == 'personalized'?\n_generate_llm_response()\nhandlers.py"}};
 
-    D3["system_prompt =\nbase_system\n+ ' Persona hints: '\n+ persona_summary\n\n→ Persona-Hints stehen AM ENDE\ndes Prompts, NACH den harten\nFormat-Constraints"]
-    D4["system_prompt =\nbase_system\n(keine Persona-Hints)"]
+    D3["system_prompt =\nbase_system\n+ ' Persona hints: '\n+ persona_summary\n\n→ Persona hints placed AT THE END\nof the prompt, AFTER the hard\nformat constraints"]
+    D4["system_prompt =\nbase_system\n(no persona hints)"]
     D5["user_prompt()\nprompts.py\n\n'Driver transcript (lang=...): {...}.\nAnswer strictly in English,\nexactly two clear sentences.'"]
 
-    %% ── Message-Liste → LLM ─────────────────────────────────────
-    E1{{"⚠️ PROBLEM 3\ncall_llm()\nllm_client.py\n\nMessage-Liste:\n1. system (mit/ohne Hints)\n2. chat_history (prior turns)\n3. user_prompt\n\nParameter:\ntemperature=0.6  ← niedrig!\nmax_tokens=90    ← eng!\ntop_p=0.9"}}
-    E2["LLM\n(Ollama / OpenAI-kompatibel)\nRohe Antwort"]
+    %% ── Message List → LLM ──────────────────────────────────────
+    E1{{"⚠️ PROBLEM 3\ncall_llm()\nllm_client.py\n\nMessage list:\n1. system (with/without hints)\n2. chat_history (prior turns)\n3. user_prompt\n\nParameters:\ntemperature=0.6  ← low!\nmax_tokens=90    ← tight!\ntop_p=0.9"}}
+    E2["LLM\n(Ollama / OpenAI-compatible)\nRaw Response"]
 
     %% ── Post-Processing ─────────────────────────────────────────
-    F1{{"⚠️ PROBLEM 4\nsanitize_llm_output()\nllm_client.py\n\nEntfernt: *bold*, [text],\nMeta-Opener wie 'Sure:', 'Klar:',\nTranskript-Echos\n→ könnte Persona-typische\nFormulierungen entfernen"}}
-    F2["filter_by_language()\nllm_client.py\nEntfernt fremdsprachige Wörter"]
+    F1{{"⚠️ PROBLEM 4a\nsanitize_llm_output()\nllm_client.py\n\nRemoves: *bold*, [text],\nmeta-openers like 'Sure:', 'Klar:'\ntranscript echoes\n→ may remove persona-typical\nformulations"}}
+    F2["filter_by_language()\nllm_client.py\nRemoves cross-language words"]
     F3{"looks_wrong_language()?"}
-    F4["rewrite_for_language()\nnochmaliger LLM-Call\nnur zur Sprachkorrektur"]
-    F5{{"⚠️ PROBLEM 4b\ntruncate_response()\nllm_client.py\n\nMax: 2 Sätze / 30 Wörter / 280 Zeichen\n→ Ton- und Stil-Unterschiede\n(die DPP erzeugt) werden hier\nweggeschnitten!"}}
+    F4["rewrite_for_language()\nsecond LLM call\nlanguage correction only"]
+    F5{{"⚠️ PROBLEM 4b\ntruncate_response()\nllm_client.py\n\nMax: 2 sentences / 30 words / 280 chars\n→ tone and style differences\n(produced by DPP) are\ncut off here!"}}
 
     %% ── Output ──────────────────────────────────────────────────
-    G1["Finale LLM-Antwort\n(Text)"]
+    G1["Final LLM Response\n(Text)"]
     G2["TTS: synthesize_speech()\naudio_io.py\nXTTS v2 → .wav"]
-    G3["CSV-Log\nresults.csv\n(beide Conditions)"]
+    G3["CSV Log\nresults.csv\n(both conditions)"]
 
-    %% ── Verbindungen ────────────────────────────────────────────
+    %% ── Connections ─────────────────────────────────────────────
     A1 --> B1
     A6 --> B1
     A2 & A3 & A4 & A5 --> C1
@@ -59,16 +59,16 @@ flowchart TD
     C1 --> C2
     C2 --> D2
     D1 --> D2
-    D2 -- "ja" --> D3
-    D2 -- "nein" --> D4
+    D2 -- "yes" --> D3
+    D2 -- "no" --> D4
     D3 & D4 --> E1
     D5 --> E1
     E1 --> E2
     E2 --> F1
     F1 --> F2
     F2 --> F3
-    F3 -- "ja" --> F4
-    F3 -- "nein" --> F5
+    F3 -- "yes" --> F4
+    F3 -- "no" --> F5
     F4 --> F5
     F5 --> G1
     G1 --> G2
@@ -99,29 +99,29 @@ flowchart TD
 
 ---
 
-## 3. Vergleichstabelle: Personalized vs. Non-Personalized
+## 3. Comparison Table: Personalized vs. Non-Personalized
 
-| Schritt | Non-Personalized | Personalized | Ist Unterschied messbar? |
-|--------|-----------------|--------------|--------------------------|
-| `base_system_prompt()` | identisch | identisch | ❌ Nein |
-| `+ Persona hints:` | nicht vorhanden | `persona_summary`-String angehängt | ✅ Im Prompt ja |
-| `user_prompt()` | identisch | identisch | ❌ Nein |
-| `chat_history` | separater Stack per Condition | separater Stack per Condition | ❌ Nein (beide starten leer) |
-| `temperature=0.6` | identisch | identisch | ❌  Determinismus dämpft Unterschiede |
-| `max_tokens=90` | identisch | identisch | ❌ Wenig Raum für Variation |
-| `sanitize_llm_output()` | identisch angewendet | identisch angewendet | ❌ Filtert ggf. Persona-Stil weg |
-| `truncate_response()` | max. 2 Sätze / 30 W | max. 2 Sätze / 30 W | ❌ **Eliminiert verbleibende Unterschiede** |
-| **Finale Antwort** | — | — | **Sehr ähnlich bis identisch** |
+| Step | Non-Personalized | Personalized | Difference measurable? |
+|------|-----------------|--------------|------------------------|
+| `base_system_prompt()` | identical | identical | ❌ No |
+| `+ Persona hints:` | not present | `persona_summary` string appended | ✅ Yes, in the prompt |
+| `user_prompt()` | identical | identical | ❌ No |
+| `chat_history` | separate stack per condition | separate stack per condition | ❌ No (both start empty) |
+| `temperature=0.6` | identical | identical | ❌ Determinism suppresses differences |
+| `max_tokens=90` | identical | identical | ❌ Little room for variation |
+| `sanitize_llm_output()` | applied identically | applied identically | ❌ May strip persona-style phrasing |
+| `truncate_response()` | max 2 sentences / 30 words | max 2 sentences / 30 words | ❌ **Eliminates remaining differences** |
+| **Final response** | — | — | **Very similar or identical** |
 
 ---
 
-## 4. Debug-Vorschläge: Pipeline-Unterschiede sichtbar machen
+## 4. Debug Suggestions: Making Pipeline Differences Visible
 
-### 4.1 Prompt-Diff direkt loggen (bereits teilweise vorhanden)
+### 4.1 Log the prompt diff directly (partially already in place)
 
-In [handlers.py](handlers.py) gibt `_generate_llm_response()` bereits einen `prompt_debug`-String zurück.
-In der UI wird er als "Debug-Prompt" angezeigt. Prüfe dort für beide Conditions ob sich die System Prompts
-tatsächlich unterscheiden:
+`_generate_llm_response()` in [handlers.py](handlers.py) already returns a `prompt_debug` string.
+The UI displays it as "Debug-Prompt". Check there whether the system prompts for both conditions
+actually differ:
 
 ```
 # Personalized system prompt (Auszug):
@@ -132,67 +132,67 @@ Persona hints: Speak calmly. Driver seems anxious; more reassurance needed. Big 
 "...Answer directly, clearly, with proper grammar. Scenario context: [...]"
 ```
 
-→ Wenn sich die Strings unterscheiden, liegt das Problem **im LLM oder im Post-Processing**, nicht beim Prompt-Bau.
+→ If the strings differ, the problem lies **in the LLM or the post-processing**, not in the prompt construction.
 
 ---
 
-### 4.2 Temperatur erhöhen zum Testen
+### 4.2 Raise temperature for testing
 
-In [settings.py](settings.py), temporär:
+In [settings.py](settings.py), temporarily:
 
 ```python
-# Vorher:
+# Before:
 DEFAULT_TEMPERATURE = 0.6
 
-# Zum Testen:
-DEFAULT_TEMPERATURE = 1.2   # höhere Variabilität → Persona-Einfluss wird sichtbarer
+# For testing:
+DEFAULT_TEMPERATURE = 1.2   # higher variability → persona influence becomes visible
 ```
 
-> **Achtung:** Nur für Debug-Zwecke. Bei `temperature > 1.0` wird die Antwort inkohärenter.
+> **Warning:** For debug purposes only. At `temperature > 1.0` responses become less coherent.
 
 ---
 
-### 4.3 truncate_response() deaktivieren
+### 4.3 Disable truncate_response()
 
-In [handlers.py](handlers.py) in `_generate_llm_response()`:
+In [handlers.py](handlers.py) inside `_generate_llm_response()`:
 
 ```python
-# Vorher:
+# Before:
 cleaned_response = truncate_response(cleaned_response, response_lang)
 
-# Zum Testen auskommentieren:
+# Comment out for testing:
 # cleaned_response = truncate_response(cleaned_response, response_lang)
 ```
 
-→ Zeigt ob das LLM bei `personalized` wirklich **längere / anders-tonige** Antworten produziert,
-bevor sie abgeschnitten werden.
+→ Reveals whether the LLM actually produces **longer / differently-toned** responses for `personalized`
+before they are cut off.
 
 ---
 
-### 4.4 Persona-Summary für alle Score-Bereiche ausgeben
+### 4.4 Print persona summary for all score ranges
 
-In [prompts.py](prompts.py) — `build_persona_summary()` — testet ob Schwellenwert greift:
+In [prompts.py](prompts.py) — `build_persona_summary()` — test whether the threshold actually fires:
 
 ```python
-# Debug: Was wird bei typischen Werten (alle = 3) erzeugt?
+# Debug: what is generated for typical mid-range values (all = 3)?
 from prompts import build_persona_summary
 summary = build_persona_summary(3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, "de")
 print(repr(summary))
-# Erwartetes Ergebnis: Nur default-Regel + Zahlen → kein Persona-spezifischer Inhalt!
+# Expected result: only default rule + numbers → no persona-specific content!
 ```
 
 ---
 
-### 4.5 Persona hints an den Anfang des System Prompts stellen
+### 4.5 Move persona hints to the beginning of the system prompt
 
-In [handlers.py](handlers.py) in `_generate_llm_response()`:
+In [handlers.py](handlers.py) inside `_generate_llm_response()`:
 
 ```python
-# Aktuell (Hints am Ende):
+# Current (hints at the end):
 system_prompt = f"{base_system} Persona hints: {persona_summary}"
 
-# Experiment (Hints am Anfang — höhere Gewichtung durch LLM):
+# Experiment (hints at the start — weighted more heavily by the LLM):
 system_prompt = f"Persona hints: {persona_summary}\n\n{base_system}"
 ```
 
-→ Testet ob die **Position der Hints** im Prompt einen messbaren Unterschied erzeugt.
+→ Tests whether the **position of the hints** in the prompt produces a measurable difference.

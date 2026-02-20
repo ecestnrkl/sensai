@@ -78,36 +78,36 @@ For the detailed analysis and debug suggestions see [PROMPTFLOW.md](PROMPTFLOW.m
 
 ```mermaid
 flowchart TD
-    A1([Participant ID\nScenario · Sprache · Run-Mode])
+    A1([Participant ID\nScenario · Language · Run-Mode])
     A2([Big Five\nO · C · E · A · N\n1–5])
     A3([Mini-DBQ\nViolations · Errors · Lapses\n1–5])
     A4([BSSS\nExperience · Thrill · Disinhibition · Boredom\n1–5])
     A5([ERQ\nReappraisal · Suppression\n1–7])
-    A6([Audio / Manualtext])
+    A6([Audio / Manual Text])
 
-    B1["_get_transcript()\nWhisper oder Manualtext"]
+    B1["_get_transcript()\nWhisper or Manual Text"]
 
-    C1{{"⚠️ P1 · build_persona_summary()\nRegel nur bei Score ≥ 4 oder ≤ 2\n→ mittlere Werte = nur default-Regel"}}
-    C2["Persona-Summary-String"]
+    C1{{"⚠️ P1 · build_persona_summary()\nRule added only if score ≥ 4 or ≤ 2\n→ mid-range scores = default rule only"}}
+    C2["Persona Summary String"]
 
-    D1["base_system_prompt()\nImmer gleich:\nRolle · 2 Sätze · Sprache · Szenario"]
+    D1["base_system_prompt()\nAlways identical:\nRole · 2 sentences · Language · Scenario"]
 
-    D2{{"⚠️ P2 · condition == personalized?\nHints stehen AM ENDE des Prompts\nnach harten Format-Constraints"}}
+    D2{{"⚠️ P2 · condition == personalized?\nHints placed AT THE END of prompt\nafter hard format constraints"}}
 
     D3["system = base + 'Persona hints: ...'"]
-    D4["system = base\n(keine Hints)"]
+    D4["system = base\n(no hints)"]
     D5["user_prompt()\n'Transcript: {...}. Exactly 2 sentences.'"]
 
-    E1{{"⚠️ P3 · call_llm()\ntemp=0.6 deterministisch\nmax_tokens=90 sehr eng"}}
-    E2["LLM → Rohe Antwort"]
+    E1{{"⚠️ P3 · call_llm()\ntemp=0.6 deterministic\nmax_tokens=90 very tight"}}
+    E2["LLM → Raw Response"]
 
-    F1{{"⚠️ P4a · sanitize_llm_output()\nEntfernt Meta-Opener → filtert Persona-Stil"}}
+    F1{{"⚠️ P4a · sanitize_llm_output()\nStrips meta-openers → may filter persona style"}}
     F2["filter_by_language()"]
     F3{"wrong language?"}
     F4["rewrite_for_language()"]
-    F5{{"⚠️ P4b · truncate_response()\nMax 2 Sätze / 30 Wörter\n→ Stil-Unterschiede weggeschnitten"}}
+    F5{{"⚠️ P4b · truncate_response()\nMax 2 sentences / 30 words\n→ style differences cut off"}}
 
-    G1["Finale Antwort"]
+    G1["Final Response"]
     G2["TTS → .wav"]
     G3["results.csv"]
 
@@ -118,16 +118,16 @@ flowchart TD
     C1 --> C2
     C2 --> D2
     D1 --> D2
-    D2 -- "ja" --> D3
-    D2 -- "nein" --> D4
+    D2 -- "yes" --> D3
+    D2 -- "no" --> D4
     D3 & D4 --> E1
     D5 --> E1
     E1 --> E2
     E2 --> F1
     F1 --> F2
     F2 --> F3
-    F3 -- "ja" --> F4
-    F3 -- "nein" --> F5
+    F3 -- "yes" --> F4
+    F3 -- "no" --> F5
     F4 --> F5
     F5 --> G1
     G1 --> G2
