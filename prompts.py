@@ -247,17 +247,18 @@ def checkin_prompts(
         else:
             system_prompt = base
         user_prompt_text = (
-            "Stelle dem Fahrer eine kurze, ruhige Frage wie 'Wie geht es Ihnen gerade?'. "
-            "Keine englischen Wörter. Keine Ich-Aussagen über Stimmung ('mir geht es', 'ich fühle', 'ich bin'). "
-            "Keine Listen, keine Wiederholung des Prompts oder der Eingabe."
+            "Der Fahrer befindet sich gerade in der beschriebenen Situation. "
+            "Starte das Gespräch: ein kurzer, einfühlsamer Satz zur aktuellen Lage, "
+            "dann eine einzelne ruhige Frage passend zur Persönlichkeit des Fahrers. "
+            "Kein Englisch. Keine Meta-Aussagen. Klingt wie natürliche gesprochene Sprache."
         )
     else:
         base = (
             "You are a calm, supportive voice assistant in a vehicle. Answer only in English, two to four short, complete sentences. "
             "No German words. No meta phrases or filler ('Of course', 'Sure', 'Here is'). Sound like natural spoken language. "
-            "The scenario describes the driver's situation — provide calm, empathetic guidance. "
+            "The scenario describes the driver's situation — provide calm, empathetic support. "
             "You are not a navigation system; never mention route, location, or directions. "
-            "Close with a single calm check-in question (e.g. 'How are you holding up?') or one brief piece of advice — not both. "
+            "End with a single calm question suited to the driver's personality — not generic, not a list. "
             f"Scenario: {scenario_text}"
         )
         if include_persona:
@@ -268,7 +269,9 @@ def checkin_prompts(
         else:
             system_prompt = base
         user_prompt_text = (
-            "Ask the driver a short, calm check-in question like 'How are you doing right now?'. "
-            "No German words. No self-talk about your own feelings. No lists; do not echo the prompt or input."
+            "The driver is currently in the situation described above. "
+            "Open the conversation: one brief empathetic sentence acknowledging their situation, "
+            "then a single calm question adapted to their personality. "
+            "No German. No meta phrases. Sound like natural spoken English."
         )
     return system_prompt, user_prompt_text
