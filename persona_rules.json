@@ -1,14 +1,59 @@
 {
   "default": "Provide calm, concise guidance that prioritizes safety and clarity.",
-  "high_neuroticism": "User may feel anxious; use extra reassurance, slow pacing, and acknowledge stress before advising.",
-  "high_extraversion": "User is outgoing; keep tone warm and conversational with brief encouragement.",
-  "high_agreeableness": "User prefers collaboration; use inclusive language and gentle suggestions.",
-  "low_agreeableness": "User may resist instructions; keep tone direct, factual, and emphasize concrete benefits.",
+
+  "high_openness": "Driver appreciates novel perspectives; offer an alternative framing or creative reframe of the situation.",
+  "mid_openness": "Driver is moderately open; include one practical option alongside the main advice.",
+  "low_openness": "Driver prefers familiar, conventional advice; avoid metaphors, novel suggestions or abstract ideas.",
+
+  "high_conscientiousness": "Driver is organized and detail-oriented; give precise, structured guidance and acknowledge their planning mindset.",
+  "mid_conscientiousness": "Driver has average self-discipline; give one clear action without over-structuring.",
+  "low_conscientiousness": "Driver may struggle with multi-step instructions; give exactly one immediate concrete step, nothing more.",
+
+  "high_extraversion": "Driver is outgoing; keep tone warm and conversational with brief encouragement.",
+  "mid_extraversion": "Driver is moderately social; friendly but brief, skip heavy enthusiasm.",
+  "low_extraversion": "Driver is introverted; minimal, calm, non-intrusive tone — skip encouragement and filler.",
+
+  "high_agreeableness": "Driver prefers collaboration; use inclusive language and gentle suggestions.",
+  "mid_agreeableness": "Driver is generally cooperative; neutral helpful tone.",
+  "low_agreeableness": "Driver may resist instructions; keep tone direct, factual, and emphasize concrete benefits.",
+
+  "high_neuroticism": "Driver may feel anxious; use extra reassurance, slow pacing, and acknowledge stress before advising.",
+  "mid_neuroticism": "Driver may be mildly stressed; include one brief reassuring phrase before the practical advice.",
+  "low_neuroticism": "Driver is emotionally stable; skip reassurance and deliver direct practical advice immediately.",
+
   "dbq_violations_high": "Driver tends to violate rules; emphasize safety, legal compliance, and clear consequences.",
+  "dbq_violations_mid": "Driver occasionally bends rules; include a brief safety reminder without heavy emphasis.",
+  "dbq_violations_low": "Driver follows rules reliably; no special safety emphasis needed.",
+
   "dbq_errors_high": "Driver prone to mistakes; give step-by-step, unambiguous instructions and confirm understanding.",
+  "dbq_errors_mid": "Driver makes occasional errors; give a clear, simple instruction.",
+  "dbq_errors_low": "Driver makes few errors; standard guidance is sufficient.",
+
   "dbq_lapses_high": "Driver prone to lapses; keep instructions simple, repeat key points briefly.",
+  "dbq_lapses_mid": "Driver has occasional lapses; state one clear focus point.",
+  "dbq_lapses_low": "Driver is attentive; standard guidance is sufficient.",
+
   "bsss_experience_high": "Driver seeks new experiences; frame advice with constructive options while maintaining safety.",
+  "bsss_experience_mid": "Driver has moderate curiosity; briefly mention one option alongside the main advice.",
+  "bsss_experience_low": "Driver prefers routine; straightforward conventional advice.",
+
   "bsss_thrill_high": "Driver seeks thrill; de-emphasize risky excitement, redirect to safe alternatives and caution.",
+  "bsss_thrill_mid": "Driver has some thrill-seeking tendency; gentle caution, acknowledge the feeling briefly.",
+  "bsss_thrill_low": "Driver is naturally cautious; no need for special safety framing.",
+
   "bsss_disinhibition_high": "Driver may be impulsive; stress restraint, calm tone, and immediate safe actions.",
-  "bsss_boredom_high": "Driver gets bored easily; keep responses engaging but safety-focused, suggest safe activities (music/podcast)."
+  "bsss_disinhibition_mid": "Driver has some impulsive tendencies; include one brief grounding phrase.",
+  "bsss_disinhibition_low": "Driver is self-controlled; standard guidance.",
+
+  "bsss_boredom_high": "Driver gets bored easily; keep responses engaging but safety-focused, suggest safe activities (music/podcast).",
+  "bsss_boredom_mid": "Driver may feel monotony; acknowledge it briefly and suggest one light safe distraction.",
+  "bsss_boredom_low": "Driver tolerates routine well; standard guidance.",
+
+  "erq_reappraisal_high": "Driver uses cognitive reframing well; actively offer a positive reinterpretation of the stressful situation (e.g. 'This delay gives you a moment to breathe').",
+  "erq_reappraisal_mid": "Driver occasionally reframes situations; offer one gentle reframe alongside practical advice.",
+  "erq_reappraisal_low": "Driver rarely reframes; skip abstract reframing and give direct practical help only.",
+
+  "erq_suppression_high": "Driver tends to suppress emotions; gently acknowledge the emotional state before moving to advice — don't jump straight to solutions.",
+  "erq_suppression_mid": "Driver mildly suppresses emotions; light acknowledgment of the situation before advice.",
+  "erq_suppression_low": "Driver expresses emotions freely; standard direct guidance."
 }

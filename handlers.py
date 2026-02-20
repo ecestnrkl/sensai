@@ -250,7 +250,10 @@ def _generate_llm_response(
     base_system = base_system_prompt(scenario_id, response_lang)
     system_prompt = base_system
     if condition == "personalized":
-        system_prompt = f"{base_system} Persona hints: {persona_summary}"
+        system_prompt = (
+            f"Driver personality profile (adapt your tone and advice style to these traits):\n"
+            f"{persona_summary}\n\n{base_system}"
+        )
     
     user_prompt_text = user_prompt(transcript, response_lang)
     prompt_debug = f"SYSTEM:\\n{system_prompt}\\n\\nUSER:\\n{user_prompt_text}"

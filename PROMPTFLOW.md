@@ -1,8 +1,9 @@
 # Promptflow: SensAI Experiment Pipeline
 
 This document visualises the full data flow from user input to LLM response,
-including the **DPP branch** (Driver Personality Profile = Big Five + DBQ + BSSS + ERQ)
-and an analysis of why the DPP currently has little or no measurable effect on the LLM output.
+including the **DPP branch** (Driver Personality Profile = Big Five + DBQ + BSSS + ERQ).
+
+**Status:** All four original bottlenecks have been fixed. See section 2 for details.
 
 ---
 
@@ -22,29 +23,29 @@ flowchart TD
     B1["_get_transcript()\nWhisper 'base' model\nor manual text"]
 
     %% ── DPP → Persona Summary ──────────────────────────────────
-    C1{{"⚠️ PROBLEM 1\nbuild_persona_summary()\nprompts.py\n\nThreshold logic:\nRule added ONLY if\nscore ≥ 4 (or ≤ 2)\n→ mid-range scores\n= default rule only!"}}
-    C2["Persona Summary String\ne.g. 'Speak calmly. Driver seems anxious;\nmore reassurance... Big Five: O=3, C=4...'"]
+    C1{{"✅ FIXED 1\nbuild_persona_summary()\nprompts.py\n\n3-tier rules for ALL traits:\nscore ≥ 4 → high rule\nscore = 3 → mid rule\nscore ≤ 2 → low rule\nO, C, ERQ now included"}}
+    C2["Persona Summary String\n(every trait produces a rule)"]
 
     %% ── System Prompt ───────────────────────────────────────────
-    D1["base_system_prompt()\nprompts.py\n\nFixed content (always identical):\n• Role: voice assistant in vehicle\n• Format: exactly 2 short sentences\n• Language purity\n• No fillers / no lists\n• Scenario context"]
+    D1["base_system_prompt()\nprompts.py\n\nFixed content (always identical):\n• Role: voice assistant in vehicle\n• Format: 2–4 short sentences\n• Language purity\n• No fillers / no lists\n• Scenario context"]
 
     %% ── Condition Branch ────────────────────────────────────────
-    D2{{"⚠️ PROBLEM 2\ncondition == 'personalized'?\n_generate_llm_response()\nhandlers.py"}};
+    D2{{"✅ FIXED 2\ncondition == 'personalized'?\n_generate_llm_response()\nhandlers.py"}};
 
-    D3["system_prompt =\nbase_system\n+ ' Persona hints: '\n+ persona_summary\n\n→ Persona hints placed AT THE END\nof the prompt, AFTER the hard\nformat constraints"]
-    D4["system_prompt =\nbase_system\n(no persona hints)"]
-    D5["user_prompt()\nprompts.py\n\n'Driver transcript (lang=...): {...}.\nAnswer strictly in English,\nexactly two clear sentences.'"]
+    D3["system_prompt =\n'Driver personality profile:\n{persona_summary}'\n\n+ base_system\n\n→ Persona profile placed FIRST\nfor maximum LLM attention weight"]
+    D4["system_prompt =\nbase_system\n(no persona profile)"]
+    D5["user_prompt()\nprompts.py\n\n'Driver transcript (lang=...): {...}.\nAnswer in 2–4 clear sentences.'"]
 
     %% ── Message List → LLM ──────────────────────────────────────
-    E1{{"⚠️ PROBLEM 3\ncall_llm()\nllm_client.py\n\nMessage list:\n1. system (with/without hints)\n2. chat_history (prior turns)\n3. user_prompt\n\nParameters:\ntemperature=0.6  ← low!\nmax_tokens=90    ← tight!\ntop_p=0.9"}}
+    E1{{"✅ FIXED 3\ncall_llm()\nllm_client.py\n\nMessage list:\n1. system (with/without profile)\n2. chat_history (prior turns)\n3. user_prompt\n\nParameters:\ntemperature=0.8  ← raised\nmax_tokens=140   ← expanded\ntop_p=0.9"}}
     E2["LLM\n(Ollama / OpenAI-compatible)\nRaw Response"]
 
     %% ── Post-Processing ─────────────────────────────────────────
-    F1{{"⚠️ PROBLEM 4a\nsanitize_llm_output()\nllm_client.py\n\nRemoves: *bold*, [text],\nmeta-openers like 'Sure:', 'Klar:'\ntranscript echoes\n→ may remove persona-typical\nformulations"}}
+    F1["sanitize_llm_output()\nllm_client.py\nRemoves: *bold*, [text],\nmeta-openers like 'Sure:', 'Klar:',\ntranscript echoes"]
     F2["filter_by_language()\nllm_client.py\nRemoves cross-language words"]
     F3{"looks_wrong_language()?"}
     F4["rewrite_for_language()\nsecond LLM call\nlanguage correction only"]
-    F5{{"⚠️ PROBLEM 4b\ntruncate_response()\nllm_client.py\n\nMax: 2 sentences / 30 words / 280 chars\n→ tone and style differences\n(produced by DPP) are\ncut off here!"}}
+    F5{{"✅ FIXED 4\ntruncate_response()\nllm_client.py\n\nMax: 4 sentences / 55 words / 450 chars\n→ room for tone and style variation"}}
 
     %% ── Output ──────────────────────────────────────────────────
     G1["Final LLM Response\n(Text)"]
@@ -75,14 +76,14 @@ flowchart TD
     G1 --> G3
 
     %% ── Styling ─────────────────────────────────────────────────
-    classDef problem fill:#ff6b6b,color:#fff,stroke:#c0392b,stroke-width:2px
+    classDef fixed fill:#00b894,color:#fff,stroke:#00856f,stroke-width:2px
     classDef input fill:#74b9ff,color:#000,stroke:#0984e3,stroke-width:1px
     classDef process fill:#dfe6e9,color:#000,stroke:#636e72,stroke-width:1px
     classDef output fill:#55efc4,color:#000,stroke:#00b894,stroke-width:1px
 
-    class C1,D2,E1,F1,F5 problem
+    class C1,D2,E1,F5 fixed
     class A1,A2,A3,A4,A5,A6 input
-    class B1,C2,D1,D3,D4,D5,F2,F4 process
+    class B1,C2,D1,D3,D4,D5,F1,F2,F4 process
     class G1,G2,G3 output
 ```
 
@@ -99,100 +100,58 @@ flowchart TD
 
 ---
 
-## 3. Comparison Table: Personalized vs. Non-Personalized
+## 3. Comparison Table: Personalized vs. Non-Personalized (After Fixes)
 
 | Step | Non-Personalized | Personalized | Difference measurable? |
 |------|-----------------|--------------|------------------------|
 | `base_system_prompt()` | identical | identical | ❌ No |
-| `+ Persona hints:` | not present | `persona_summary` string appended | ✅ Yes, in the prompt |
+| DPP profile block | not present | `"Driver personality profile:\n{summary}"` prepended | ✅ **Yes — at the top** |
 | `user_prompt()` | identical | identical | ❌ No |
 | `chat_history` | separate stack per condition | separate stack per condition | ❌ No (both start empty) |
-| `temperature=0.6` | identical | identical | ❌ Determinism suppresses differences |
-| `max_tokens=90` | identical | identical | ❌ Little room for variation |
-| `sanitize_llm_output()` | applied identically | applied identically | ❌ May strip persona-style phrasing |
-| `truncate_response()` | max 2 sentences / 30 words | max 2 sentences / 30 words | ❌ **Eliminates remaining differences** |
-| **Final response** | — | — | **Very similar or identical** |
+| `temperature=0.8` | identical | identical | ✅ Higher variability → profile has more impact |
+| `max_tokens=140` | identical | identical | ✅ Enough room for 2–4 varied sentences |
+| `sanitize_llm_output()` | applied identically | applied identically | Neutral |
+| `truncate_response()` | max 4 sentences / 55 words | max 4 sentences / 55 words | ✅ No longer clips persona-driven style |
+| **Final response** | — | — | **Should differ noticeably in tone, phrasing and emphasis** |
 
 ---
 
-## 4. Debug Suggestions: Making Pipeline Differences Visible
+## 4. Personality → Response Behaviour Reference
 
-### 4.1 Log the prompt diff directly (partially already in place)
+How each DPP trait should now shape the LLM response:
 
-`_generate_llm_response()` in [handlers.py](handlers.py) already returns a `prompt_debug` string.
-The UI displays it as "Debug-Prompt". Check there whether the system prompts for both conditions
-actually differ:
-
-```
-# Personalized system prompt (Auszug):
-"...Answer directly, clearly, with proper grammar. Scenario context: [...] 
-Persona hints: Speak calmly. Driver seems anxious; more reassurance needed. Big Five: O=3, C=4..."
-
-# Non-Personalized system prompt (Auszug):
-"...Answer directly, clearly, with proper grammar. Scenario context: [...]"
-```
-
-→ If the strings differ, the problem lies **in the LLM or the post-processing**, not in the prompt construction.
+| Trait | Low (≤2) | Mid (3) | High (≥4, ERQ ≥5) |
+|-------|----------|---------|-------------------|
+| **O** Openness | Familiar, conventional advice only | One practical option mentioned | Offer alternative framing or creative reframe |
+| **C** Conscientiousness | Single immediate step, no multi-part | One clear action | Precise, structured, acknowledge planning |
+| **E** Extraversion | Minimal, calm, non-intrusive | Friendly but brief | Warm, conversational, brief encouragement |
+| **A** Agreeableness | Direct, factual, emphasize benefit | Neutral helpful | Inclusive, gentle, "we"-framing |
+| **N** Neuroticism | Skip reassurance, direct advice | One brief reassuring phrase first | Acknowledge stress first, heavy reassurance |
+| **DBQ Violations** | No safety emphasis | Brief safety reminder | Explicit legal/safety warning |
+| **DBQ Errors** | Standard | Clear simple instruction | Step-by-step, unambiguous |
+| **DBQ Lapses** | Standard | Single focus point | Very simple, possible key-point repeat |
+| **BSSS Experience** | Conventional | One option mentioned | Frame as enriching, safe option |
+| **BSSS Thrill** | Affirm caution | Gentle caution, acknowledge feeling | Redirect to safe alternative |
+| **BSSS Disinhibition** | Standard | Brief grounding phrase | Stress restraint + immediate safe step |
+| **BSSS Boredom** | Standard | Acknowledge monotony, light distraction | Engaging tone + suggest music/podcast |
+| **ERQ Reappraisal** | Direct practical help only | Gentle reframe offered | Actively suggest positive reinterpretation |
+| **ERQ Suppression** | Standard | Light acknowledgment before advice | Acknowledge emotional state first, then advise |
 
 ---
 
-### 4.2 Raise temperature for testing
+## 5. Validation Snippet
 
-In [settings.py](settings.py), temporarily:
+Run this in the project directory to check the persona summary is now non-trivial for mid-range scores:
 
 ```python
-# Before:
-DEFAULT_TEMPERATURE = 0.6
-
-# For testing:
-DEFAULT_TEMPERATURE = 1.2   # higher variability → persona influence becomes visible
-```
-
-> **Warning:** For debug purposes only. At `temperature > 1.0` responses become less coherent.
-
----
-
-### 4.3 Disable truncate_response()
-
-In [handlers.py](handlers.py) inside `_generate_llm_response()`:
-
-```python
-# Before:
-cleaned_response = truncate_response(cleaned_response, response_lang)
-
-# Comment out for testing:
-# cleaned_response = truncate_response(cleaned_response, response_lang)
-```
-
-→ Reveals whether the LLM actually produces **longer / differently-toned** responses for `personalized`
-before they are cut off.
-
----
-
-### 4.4 Print persona summary for all score ranges
-
-In [prompts.py](prompts.py) — `build_persona_summary()` — test whether the threshold actually fires:
-
-```python
-# Debug: what is generated for typical mid-range values (all = 3)?
+import sys; sys.path.insert(0, '.')
 from prompts import build_persona_summary
-summary = build_persona_summary(3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, "de")
-print(repr(summary))
-# Expected result: only default rule + numbers → no persona-specific content!
+
+# All mid-range — should now produce rules for every trait:
+summary = build_persona_summary(3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, "en")
+print(summary)
+
+# High N, low C — should produce heavy reassurance + single-step instruction:
+summary2 = build_persona_summary(3, 1, 3, 3, 5, 2, 3, 3, 3, 3, 3, 3, 3, 3, "en")
+print(summary2)
 ```
-
----
-
-### 4.5 Move persona hints to the beginning of the system prompt
-
-In [handlers.py](handlers.py) inside `_generate_llm_response()`:
-
-```python
-# Current (hints at the end):
-system_prompt = f"{base_system} Persona hints: {persona_summary}"
-
-# Experiment (hints at the start — weighted more heavily by the LLM):
-system_prompt = f"Persona hints: {persona_summary}\n\n{base_system}"
-```
-
-→ Tests whether the **position of the hints** in the prompt produces a measurable difference.

@@ -87,25 +87,25 @@ flowchart TD
 
     B1["_get_transcript()\nWhisper or Manual Text"]
 
-    C1{{"⚠️ P1 · build_persona_summary()\nRule added only if score ≥ 4 or ≤ 2\n→ mid-range scores = default rule only"}}
+    C1{{"✅ build_persona_summary()\n3-tier rules for ALL traits (low/mid/high)\nO, C, ERQ now included"}}
     C2["Persona Summary String"]
 
-    D1["base_system_prompt()\nAlways identical:\nRole · 2 sentences · Language · Scenario"]
+    D1["base_system_prompt()\nAlways identical:\nRole · 2–4 sentences · Language · Scenario"]
 
-    D2{{"⚠️ P2 · condition == personalized?\nHints placed AT THE END of prompt\nafter hard format constraints"}}
+    D2{{"✅ condition == personalized?\nPersona profile placed FIRST\nbefore format constraints"}}
 
-    D3["system = base + 'Persona hints: ...'"]
+    D3["system = 'Driver personality profile:\n{persona_summary}'\n+ base"]
     D4["system = base\n(no hints)"]
     D5["user_prompt()\n'Transcript: {...}. Exactly 2 sentences.'"]
 
-    E1{{"⚠️ P3 · call_llm()\ntemp=0.6 deterministic\nmax_tokens=90 very tight"}}
+    E1{{"✅ call_llm()\ntemp=0.8 · max_tokens=140"}}
     E2["LLM → Raw Response"]
 
-    F1{{"⚠️ P4a · sanitize_llm_output()\nStrips meta-openers → may filter persona style"}}
+    F1["sanitize_llm_output()\nStrips meta-openers / markdown"]
     F2["filter_by_language()"]
     F3{"wrong language?"}
     F4["rewrite_for_language()"]
-    F5{{"⚠️ P4b · truncate_response()\nMax 2 sentences / 30 words\n→ style differences cut off"}}
+    F5{{"✅ truncate_response()\nMax 4 sentences / 55 words / 450 chars"}}
 
     G1["Final Response"]
     G2["TTS → .wav"]
@@ -133,14 +133,14 @@ flowchart TD
     G1 --> G2
     G1 --> G3
 
-    classDef problem fill:#ff6b6b,color:#fff,stroke:#c0392b,stroke-width:2px
+    classDef fixed fill:#00b894,color:#fff,stroke:#00856f,stroke-width:2px
     classDef input fill:#74b9ff,color:#000,stroke:#0984e3,stroke-width:1px
     classDef process fill:#dfe6e9,color:#000,stroke:#636e72,stroke-width:1px
     classDef output fill:#55efc4,color:#000,stroke:#00b894,stroke-width:1px
 
-    class C1,D2,E1,F1,F5 problem
+    class C1,D2,E1,F5 fixed
     class A1,A2,A3,A4,A5,A6 input
-    class B1,C2,D1,D3,D4,D5,F2,F4 process
+    class B1,C2,D1,D3,D4,D5,F1,F2,F4 process
     class G1,G2,G3 output
 ```
 

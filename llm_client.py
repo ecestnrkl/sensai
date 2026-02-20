@@ -202,7 +202,7 @@ def _ensure_punctuation(sentence: str) -> str:
     return sent
 
 
-def ensure_two_complete_sentences(text: str, lang: str) -> str:
+def ensure_two_complete_sentences(text: str, lang: str, max_sentences: int = 4) -> str:
     normalized = re.sub(r"\.{3,}", ".", text)
     normalized = re.sub(r"\s+", " ", normalized).strip()
     parts = re.split(r"(?<=[.!?])\s+", normalized)
@@ -214,7 +214,7 @@ def ensure_two_complete_sentences(text: str, lang: str) -> str:
         cleaned = cleaned.rstrip(".!?")
         if cleaned:
             sentences.append(_ensure_punctuation(cleaned))
-        if len(sentences) == 2:
+        if len(sentences) == max_sentences:
             break
     def _fallback(idx: int) -> str:
         if lang == "de":
@@ -222,34 +222,38 @@ def ensure_two_complete_sentences(text: str, lang: str) -> str:
         return "Stay focused on the road." if idx == 0 else "Keep calm and maintain safe distance."
     while len(sentences) < 2:
         sentences.append(_ensure_punctuation(_fallback(len(sentences))))
-    return " ".join(sentences[:2])
+    return " ".join(sentences[:max_sentences])
 
 
-def truncate_response(text: str, lang: str, max_chars: int = 280, max_words: int = 30) -> str:
+def truncate_response(text: str, lang: str, max_chars: int = 450, max_words: int = 55) -> str:
     cleaned = scrub_language_leaks(text, lang)
-    sentences_text = ensure_two_complete_sentences(cleaned, lang)
+    sentences_text = ensure_two_complete_sentences(cleaned, lang, max_sentences=4)
     parts = re.split(r"(?<=[.!?])\s+", sentences_text.strip())
     parts = [p.strip() for p in parts if p.strip()]
     if not parts:
         parts = [""]
     if len(parts) < 2:
         parts.append(_ensure_punctuation(parts[0]))
-    s1_words = parts[0].split()
-    s2_words = parts[1].split()
-    total_words = len(s1_words) + len(s2_words)
+    total_words = sum(len(p.split()) for p in parts)
     if total_words > max_words:
-        allowed_s2 = max_words - len(s1_words)
-        if allowed_s2 < 4:
-            allowed_s2 = 4
-        s2_words = s2_words[:allowed_s2]
-        parts[1] = _ensure_punctuation(" ".join(s2_words))
-    result = f"{parts[0]} {parts[1]}".strip()
+        # trim from last sentence backwards until within budget
+        while len(parts) > 2 and total_words > max_words:
+            removed = parts.pop()
+            total_words -= len(removed.split())
+        # if still over, trim the last remaining sentence word by word
+        if total_words > max_words:
+            last_words = parts[-1].split()
+            allowed = max_words - sum(len(p.split()) for p in parts[:-1])
+            if allowed < 4:
+                allowed = 4
+            parts[-1] = _ensure_punctuation(" ".join(last_words[:allowed]))
+    result = " ".join(parts).strip()
     if len(result) > max_chars:
         short_tip = "Bleib aufmerksam und fahr sicher." if lang == "de" else "Stay alert and drive safely."
         result = f"{parts[0]} {short_tip}"
         result = re.sub(r"\s{2,}", " ", result).strip()
     result = scrub_language_leaks(result, lang)
-    return ensure_two_complete_sentences(result, lang)
+    return ensure_two_complete_sentences(result, lang, max_sentences=4)
 
 
 def filter_by_language(text: str, lang: str) -> str:
@@ -259,7 +263,7 @@ def filter_by_language(text: str, lang: str) -> str:
 def rewrite_for_language(endpoint: str, model: str, text: str, lang: str) -> Optional[str]:
     target = "Deutsch" if lang == "de" else "English"
     system_prompt = (
-        f"Rewrite the assistant reply in {target} only. Output exactly two short, complete sentences. "
+        f"Rewrite the assistant reply in {target} only. Output two to four short, complete sentences. "
         "No lists, no meta, no quotes."
     )
     user_prompt = f"Rewrite this as two sentences in {target}: {text}"
