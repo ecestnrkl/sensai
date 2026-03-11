@@ -2,8 +2,8 @@
   {
     "id": "job_interview_time_pressure",
     "title": "Job Interview Time Pressure",
-    "text": "Imagine you are driving to a critical job interview. There are just five minutes left until your appointment, and traffic congestion is worse than expected. If you arrive late, you lose your chance at your dream job. The navigation app shows red everywhere, every minute counts.",
-    "text_de": "Stell dir vor, du fährst zu einem entscheidenden Vorstellungsgespräch. Es sind nur noch fünf Minuten bis zum Termin, und der Verkehr ist schlimmer als erwartet. Wenn du zu spät kommst, verpasst du die Chance auf deinen Traumjob. Die Navi-App zeigt überall Rot – jede Minute zählt."
+    "text": "You are driving to a critical job interview. There are just five minutes left until your appointment, and traffic congestion is worse than expected. If you arrive late, you lose your chance at your dream job. Every minute counts.",
+    "text_de": "Du fährst zu einem entscheidenden Vorstellungsgespräch. Es sind nur noch fünf Minuten bis zum Termin, und der Verkehr ist schlimmer als erwartet. Wenn du zu spät kommst, verpasst du die Chance auf deinen Traumjob. Jede Minute zählt."
   },
   {
     "id": "exam_presentation_deadline",
