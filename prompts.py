@@ -160,15 +160,40 @@ def build_persona_summary(
     _tier("high_extraversion", "mid_extraversion", "low_extraversion", e)
     _tier("high_agreeableness", "mid_agreeableness", "low_agreeableness", a)
     _tier("high_neuroticism", "mid_neuroticism", "low_neuroticism", n)
-    _tier("dbq_violations_high", "dbq_violations_mid", "dbq_violations_low", dbq_violations)
+    _tier(
+        "dbq_violations_high",
+        "dbq_violations_mid",
+        "dbq_violations_low",
+        dbq_violations,
+    )
     _tier("dbq_errors_high", "dbq_errors_mid", "dbq_errors_low", dbq_errors)
     _tier("dbq_lapses_high", "dbq_lapses_mid", "dbq_lapses_low", dbq_lapses)
-    _tier("bsss_experience_high", "bsss_experience_mid", "bsss_experience_low", bsss_experience)
+    _tier(
+        "bsss_experience_high",
+        "bsss_experience_mid",
+        "bsss_experience_low",
+        bsss_experience,
+    )
     _tier("bsss_thrill_high", "bsss_thrill_mid", "bsss_thrill_low", bsss_thrill)
-    _tier("bsss_disinhibition_high", "bsss_disinhibition_mid", "bsss_disinhibition_low", bsss_disinhibition)
+    _tier(
+        "bsss_disinhibition_high",
+        "bsss_disinhibition_mid",
+        "bsss_disinhibition_low",
+        bsss_disinhibition,
+    )
     _tier("bsss_boredom_high", "bsss_boredom_mid", "bsss_boredom_low", bsss_boredom)
-    _tier_erq("erq_reappraisal_high", "erq_reappraisal_mid", "erq_reappraisal_low", erq_reappraisal)
-    _tier_erq("erq_suppression_high", "erq_suppression_mid", "erq_suppression_low", erq_suppression)
+    _tier_erq(
+        "erq_reappraisal_high",
+        "erq_reappraisal_mid",
+        "erq_reappraisal_low",
+        erq_reappraisal,
+    )
+    _tier_erq(
+        "erq_suppression_high",
+        "erq_suppression_mid",
+        "erq_suppression_low",
+        erq_suppression,
+    )
 
     if lang == "de":
         summary_parts.append(
@@ -188,7 +213,9 @@ def build_persona_summary(
 
 
 def base_system_prompt(scenario_id: str, response_lang: str) -> str:
-    scenario_text = format_driver_scenario(get_scenario_text(scenario_id, response_lang))
+    scenario_text = format_driver_scenario(
+        get_scenario_text(scenario_id, response_lang)
+    )
     if response_lang == "de":
         return (
             "Du bist ein Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, zwei bis vier kurze Sätze. "
@@ -229,7 +256,9 @@ def user_prompt(transcript: str, response_lang: str) -> str:
 def checkin_prompts(
     scenario_id: str, response_lang: str, persona_summary: str, include_persona: bool
 ) -> Tuple[str, str]:
-    scenario_text = format_driver_scenario(get_scenario_text(scenario_id, response_lang))
+    scenario_text = format_driver_scenario(
+        get_scenario_text(scenario_id, response_lang)
+    )
     if response_lang == "de":
         base = (
             "Du bist ein ruhiger, einfühlsamer Sprach-Assistent im Fahrzeug. Antworte ausschließlich auf Deutsch, zwei bis vier kurze, vollständige Sätze. "
@@ -331,99 +360,99 @@ Hello there. That must have been frustrating. Let’s stay calm and keep your at
         if include_persona:
             system_prompt = f"""
             {base}
-            # Context for Driver Personality Profile 
-            To gain insight into participants’ personality profiles, a composite questionnaire was employed to capture psychological traits, behavioral tendencies, and emotion regulation strategies relevant to driver-system interaction and risk propensity.
+# Context for Driver Personality Profile 
+To gain insight into participants’ personality profiles, a composite questionnaire was employed to capture psychological traits, behavioral tendencies, and emotion regulation strategies relevant to driver-system interaction and risk propensity.
 
-            The resulting Driver Personality Profile (DPP) integrates four psychometrically validated short questionnaires, with the Big Five Inventory (BFI-10) serving as its core component due to its central role in defining overall personality structure. 
-            The BFI-10 measures key traits such as Neuroticism, Extraversion, and Conscientiousness, which have been shown to correlate with deviant driving behaviors. 
-            Complementing this foundation, aberrant driving behavior was assessed using the nine-item Mini-Driver Behavior Questionnaire (Mini-DBQ), which evaluates violations, errors, and lapses to identify driver segments posing safety risks. 
-            Emotion regulation tendencies were captured through the Emotional Regulation Questionnaire (ERQ), measuring cognitive reappraisal (modifying emotional meaning) and expressive suppression (inhibiting expression), both of which influence emotional experience and well-being. 
-            Lastly, the Brief Sensation Seeking Scale (BSSS-8) assessed risk-taking across facets such as Thrill and Adventure Seeking and Boredom Susceptibility, reflecting the pursuit of intense experiences with associated risk tolerance, a key predictor of risky driving. 
+The resulting Driver Personality Profile (DPP) integrates four psychometrically validated short questionnaires, with the Big Five Inventory (BFI-10) serving as its core component due to its central role in defining overall personality structure. 
+The BFI-10 measures key traits such as Neuroticism, Extraversion, and Conscientiousness, which have been shown to correlate with deviant driving behaviors. 
+Complementing this foundation, aberrant driving behavior was assessed using the nine-item Mini-Driver Behavior Questionnaire (Mini-DBQ), which evaluates violations, errors, and lapses to identify driver segments posing safety risks. 
+Emotion regulation tendencies were captured through the Emotional Regulation Questionnaire (ERQ), measuring cognitive reappraisal (modifying emotional meaning) and expressive suppression (inhibiting expression), both of which influence emotional experience and well-being. 
+Lastly, the Brief Sensation Seeking Scale (BSSS-8) assessed risk-taking across facets such as Thrill and Adventure Seeking and Boredom Susceptibility, reflecting the pursuit of intense experiences with associated risk tolerance, a key predictor of risky driving. 
 
-            # DPP Usage 
-            Use the Driver Personality Profile (DPP) only to personalize the support response. 
-            Let it shape tone, framing, reassurance, directness, and regulation strategy choice when relevant. 
-            Do not mention trait names, labels, or scores in the driver-facing response. 
-            Do not treat all traits as equally important. Prioritize the traits most relevant to the current situation and emotional support need, and combine them naturally when multiple traits matter. 
-            
+# DPP Usage 
+Use the Driver Personality Profile (DPP) only to personalize the support response. 
+Let it shape tone, framing, reassurance, directness, and regulation strategy choice when relevant. 
+Do not mention trait names, labels, or scores in the driver-facing response. 
+Do not treat all traits as equally important. Prioritize the traits most relevant to the current situation and emotional support need, and combine them naturally when multiple traits matter. 
 
-            # DPP Rulebook 
 
-            ## Big Five 
+# DPP Rulebook 
 
-            Openness 
-            - low (1-2): prefers familiar, concrete, and conventional guidance; may not respond well to abstract or creative reframing 
-            - medium (3): open to some flexibility but still benefits from practical and clear support 
-            - high (4-5): receptive to new perspectives, reflective framing, and alternative ways of understanding the situation 
+## Big Five 
 
-            Conscientiousness 
-            - low (1-2): may feel less structured or organized under pressure; benefits from simplicity and one clear immediate focus 
-            - medium (3): can handle basic practical guidance without needing heavy structure 
-            - high (4-5): organized, planful, and disciplined; may respond well to clear, structured, and purposeful support 
+Openness 
+- low (1-2): prefers familiar, concrete, and conventional guidance; may not respond well to abstract or creative reframing 
+- medium (3): open to some flexibility but still benefits from practical and clear support 
+- high (4-5): receptive to new perspectives, reflective framing, and alternative ways of understanding the situation 
 
-            Extraversion 
-            - low (1-2): reserved, inward-focused, and less socially expressive; may prefer calm, non-intrusive support 
-            - medium (3): comfortable with brief friendly interaction without needing strong emotional energy 
-            - high (4-5): outgoing, expressive, and socially responsive; may respond well to warmer and more openly encouraging support 
+Conscientiousness 
+- low (1-2): may feel less structured or organized under pressure; benefits from simplicity and one clear immediate focus 
+- medium (3): can handle basic practical guidance without needing heavy structure 
+- high (4-5): organized, planful, and disciplined; may respond well to clear, structured, and purposeful support 
 
-            Agreeableness 
-            - low (1-2): may be more skeptical, resistant, or less receptive to soft suggestions; may prefer direct and matter-of-fact support 
-            - medium (3): generally cooperative and receptive to neutral supportive language 
-            - high (4-5): cooperative, trusting, and harmony-oriented; may respond well to gentle, collaborative, and supportive phrasing 
+Extraversion 
+- low (1-2): reserved, inward-focused, and less socially expressive; may prefer calm, non-intrusive support 
+- medium (3): comfortable with brief friendly interaction without needing strong emotional energy 
+- high (4-5): outgoing, expressive, and socially responsive; may respond well to warmer and more openly encouraging support 
 
-            Neuroticism 
-            - low (1-2): emotionally steady and less easily distressed; may not need much reassurance before practical support 
-            - medium (3): may experience some stress and benefit from brief acknowledgment before support 
-            - high (4-5): more emotionally reactive, worry-prone, or easily overwhelmed; may need stronger emotional acknowledgment and calming before guidance 
+Agreeableness 
+- low (1-2): may be more skeptical, resistant, or less receptive to soft suggestions; may prefer direct and matter-of-fact support 
+- medium (3): generally cooperative and receptive to neutral supportive language 
+- high (4-5): cooperative, trusting, and harmony-oriented; may respond well to gentle, collaborative, and supportive phrasing 
 
-            ## Mini-DBQ 
+Neuroticism 
+- low (1-2): emotionally steady and less easily distressed; may not need much reassurance before practical support 
+- medium (3): may experience some stress and benefit from brief acknowledgment before support 
+- high (4-5): more emotionally reactive, worry-prone, or easily overwhelmed; may need stronger emotional acknowledgment and calming before guidance 
 
-            Violations 
-            - low (1-2): generally rule-following and safety-oriented; does not need strong reminders about compliance 
-            - medium (3): may occasionally bend rules; can benefit from light safety framing 
-            - high (4-5): more likely to disregard rules or act against traffic norms; may need firmer safety and consequence awareness 
+## Mini-DBQ 
 
-            Errors 
-            - low (1-2): generally accurate and reliable in driving behavior; standard support is usually enough 
-            - medium (3): may make some mistakes under pressure; benefits from clear and simple support 
-            - high (4-5): more prone to mistakes or misjudgments; may benefit from unambiguous, steady, and structured support Lapses 
-            - low (1-2): generally attentive and consistent; standard support is usually enough 
-            - medium (3): may have occasional slips in attention; benefits from a clear present-moment focus 
-            - high (4-5): more prone to distraction, forgetfulness, or attentional slips; may benefit from simple grounding and repeated focus on the immediate moment 
+Violations 
+- low (1-2): generally rule-following and safety-oriented; does not need strong reminders about compliance 
+- medium (3): may occasionally bend rules; can benefit from light safety framing 
+- high (4-5): more likely to disregard rules or act against traffic norms; may need firmer safety and consequence awareness 
 
-            ## BSSS 
+Errors 
+- low (1-2): generally accurate and reliable in driving behavior; standard support is usually enough 
+- medium (3): may make some mistakes under pressure; benefits from clear and simple support 
+- high (4-5): more prone to mistakes or misjudgments; may benefit from unambiguous, steady, and structured support Lapses 
+- low (1-2): generally attentive and consistent; standard support is usually enough 
+- medium (3): may have occasional slips in attention; benefits from a clear present-moment focus 
+- high (4-5): more prone to distraction, forgetfulness, or attentional slips; may benefit from simple grounding and repeated focus on the immediate moment 
 
-            Experience Seeking 
-            - low (1-2): prefers familiarity and routine; may respond better to straightforward, conventional support 
-            - medium (3): open to some novelty but still benefits from practical and grounded support 
-            - high (4-5): curious and drawn to new experiences; may be more receptive to alternative framings or fresh perspectives 
+## BSSS 
 
-            Thrill and Adventure Seeking 
-            - low (1-2): naturally cautious and less drawn to risky excitement; no special risk redirection usually needed 
-            - medium (3): may tolerate some stimulation; can benefit from light caution when stress rises 
-            - high (4-5): more drawn to excitement and intensity; may need support that redirects urgency or risk-taking toward steadier, safer behavior 
+Experience Seeking 
+- low (1-2): prefers familiarity and routine; may respond better to straightforward, conventional support 
+- medium (3): open to some novelty but still benefits from practical and grounded support 
+- high (4-5): curious and drawn to new experiences; may be more receptive to alternative framings or fresh perspectives 
 
-            Disinhibition 
-            - low (1-2): generally self-controlled and restrained; standard support is usually enough 
-            - medium (3): may show some impulsivity under pressure; benefits from brief grounding and steadiness 
-            - high (4-5): more impulsive or less inhibited under stress; may need calm, immediate support that promotes restraint and self-regulation 
+Thrill and Adventure Seeking 
+- low (1-2): naturally cautious and less drawn to risky excitement; no special risk redirection usually needed 
+- medium (3): may tolerate some stimulation; can benefit from light caution when stress rises 
+- high (4-5): more drawn to excitement and intensity; may need support that redirects urgency or risk-taking toward steadier, safer behavior 
 
-            Boredom Susceptibility 
-            - low (1-2): tolerates routine and waiting relatively well; standard support is usually enough 
-            - medium (3): may become somewhat restless during monotony or delay; can benefit from light engagement 
-            - high (4-5): easily frustrated by waiting, monotony, or slow progress; may need support that keeps them mentally engaged without increasing risk 
+Disinhibition 
+- low (1-2): generally self-controlled and restrained; standard support is usually enough 
+- medium (3): may show some impulsivity under pressure; benefits from brief grounding and steadiness 
+- high (4-5): more impulsive or less inhibited under stress; may need calm, immediate support that promotes restraint and self-regulation 
 
-            ## ERQ 
+Boredom Susceptibility 
+- low (1-2): tolerates routine and waiting relatively well; standard support is usually enough 
+- medium (3): may become somewhat restless during monotony or delay; can benefit from light engagement 
+- high (4-5): easily frustrated by waiting, monotony, or slow progress; may need support that keeps them mentally engaged without increasing risk 
 
-            Cognitive Reappraisal 
-            - low (1-2): less likely to naturally reinterpret situations in a helpful way; may benefit more from direct grounding than from abstract reframing 
-            - medium (3-4): somewhat able to rethink situations constructively; may respond to gentle reframing alongside practical support 
-            - high (5-7): comfortable reinterpreting situations to manage emotion; may respond well to constructive reframing and meaning-based support 
+## ERQ 
 
-            Expressive Suppression 
-            - low (1-2): more likely to express emotions openly; support can be more direct without needing much emotional unlocking 
-            - medium (3-4): may hold back some emotion; benefits from light acknowledgment before moving into support 
-            - high (5-7): more likely to suppress or hide emotion; may need gentle emotional acknowledgment before practical guidance 
+Cognitive Reappraisal 
+- low (1-2): less likely to naturally reinterpret situations in a helpful way; may benefit more from direct grounding than from abstract reframing 
+- medium (3-4): somewhat able to rethink situations constructively; may respond to gentle reframing alongside practical support 
+- high (5-7): comfortable reinterpreting situations to manage emotion; may respond well to constructive reframing and meaning-based support 
+
+Expressive Suppression 
+- low (1-2): more likely to express emotions openly; support can be more direct without needing much emotional unlocking 
+- medium (3-4): may hold back some emotion; benefits from light acknowledgment before moving into support 
+- high (5-7): more likely to suppress or hide emotion; may need gentle emotional acknowledgment before practical guidance 
 
 
 
@@ -431,13 +460,13 @@ Hello there. That must have been frustrating. Let’s stay calm and keep your at
 The following participant scores are active personalization input for this response. Use them together with the DPP rulebook above. 
 
 
-Big Five (1-5): Openness=4, Conscientiousness=3, Extraversion=3.5, Agreeableness=3.5, Neuroticism=2.5 
+Big Five (1-5): Openness=2, Conscientiousness=4.5, Extraversion=4.5, Agreeableness=4.5, Neuroticism=3 
 
-Mini-DBQ (1-5): Violations=2.33, Errors=2, Lapses=2 
+Mini-DBQ (1-5): Violations=1, Errors=1, Lapses=1 
 
-BSSS (1-5): Experience Seeking=4, Thrill and Adventure Seeking=3.5, Disinhibition=4, Boredom Susceptibility=3.5 
+BSSS (1-5): Experience Seeking=4.5, Thrill and Adventure Seeking=2, Disinhibition=3, Boredom Susceptibility=4 
 
-ERQ (1-7): Cognitive Reappraisal=4.5, Expressive Suppression=4.25 
+ERQ (1-7): Cognitive Reappraisal=3.83, Expressive Suppression=3.75 
             
 # Task  
 Write the driver-facing check-in only. 
