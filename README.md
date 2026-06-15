@@ -321,15 +321,6 @@ pip install mypy types-requests
 mypy --strict audio_io.py handlers.py llm_client.py data.py
 ```
 
-### Code Quality
-See [.github/copilot-instructions.md](.github/copilot-instructions.md) for:
-- Architecture overview
-- Coding conventions
-- Common development tasks
-- Testing strategies
-
----
-
 ## Data Export
 
 Results are saved to `results.csv` with columns:
