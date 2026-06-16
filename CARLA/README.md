@@ -5,6 +5,11 @@ ScenarioRunner 0.9.16
 
 https://carla.org/
 
+## Desription
+
+A controlled driving simulation was created using CARLA Simulator (v0.9.16) in combination with ScenarioRunner (v0.9.16) in Town03, allowing participants to navigate an urban environment. The participants controlled the ego vehicle using a Logitech steering wheel and pedal set, enabling acceleration, braking, steering, and forward/reverse driving.
+To induce stress, non-player vehicles in autopilot mode and stationary roadblocks were used to create traffic congestion and time pressure. Blocking vehicles resumed movement as participants approach the area, causing the traffic jam to gradually clear.
+
 ## Set up CARLA and ScenarioRunner
 
 Follow the installation of
